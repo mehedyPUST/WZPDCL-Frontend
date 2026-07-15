@@ -1,3 +1,4 @@
+// src/app/dashboard/billing/generate-bills/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -52,23 +53,35 @@ export default function GenerateBillsPage() {
 
     const fetchMeters = async () => {
         const token = getCookie('token');
-        if (!token) { setError('Not authenticated'); setLoading(false); return; }
+        if (!token) {
+            setError('Not authenticated');
+            setLoading(false);
+            return;
+        }
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/all`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            console.log('Fetched meters:', data);
-            // ✅ কোনো ফিল্টার ছাড়াই সব মিটার দেখাও
-            setMeters(Array.isArray(data) ? data : []);
-        } catch {
+            console.log('Raw response:', data);
+            if (Array.isArray(data)) {
+                setMeters(data);
+            } else if (data && Array.isArray(data.meters)) {
+                setMeters(data.meters);
+            } else {
+                setMeters([]);
+            }
+        } catch (err) {
             setError('Failed to load meters');
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { fetchMeters(); }, []);
+    useEffect(() => {
+        fetchMeters();
+    }, []);
 
     const filteredMeters = useMemo(() => {
         if (!searchTerm.trim()) return meters;
