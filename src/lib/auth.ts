@@ -8,13 +8,11 @@ export const auth = betterAuth({
     session: {
         strategy: "jwt",
     },
-    // ✅ Google social provider
     socialProviders: {
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            // Google থেকে প্রোফাইল এলে ব্যাকএন্ডে ইউজার তৈরি/লগইন
-            async profile(profile) {
+            async profile(profile: any) {   // ✅ টাইপ যোগ
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -31,13 +29,12 @@ export const auth = betterAuth({
                     id: data.user.id,
                     email: data.user.email,
                     name: data.user.name,
-                    role: data.user.role,   // নতুন ইউজার হলে "consumer" আসবে
-                    token: data.token,      // JWT token
+                    role: data.user.role,
+                    token: data.token,
                 };
             },
         },
     },
-    // Credentials provider (email/password)
     providers: [
         {
             id: "credentials",
