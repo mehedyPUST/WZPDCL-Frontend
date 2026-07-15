@@ -51,7 +51,7 @@ const Navbar = () => {
             xen: '/dashboard/xen',
             connection_wing: '/dashboard/connection_wing',
             complaint_manager: '/dashboard/complaint_manager',
-            billing_wings: '/dashboard/billing_wings',
+            billing_wings: '/dashboard/billing',
             consumer: '/dashboard/consumer',
         };
         return paths[role] || '/dashboard/consumer';
