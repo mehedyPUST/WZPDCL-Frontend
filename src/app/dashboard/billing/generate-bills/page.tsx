@@ -43,7 +43,6 @@ export default function GenerateBillsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Generate bill modal
     const [showModal, setShowModal] = useState(false);
     const [selectedMeter, setSelectedMeter] = useState<Meter | null>(null);
     const [prevReading, setPrevReading] = useState(0);
@@ -142,10 +141,7 @@ export default function GenerateBillsPage() {
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bills/generate`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                     meterNumber: selectedMeter.meterNumber,
                     consumerType: selectedMeter.consumerType || 'residential',
@@ -187,28 +183,19 @@ export default function GenerateBillsPage() {
                 <button onClick={fetchMeters} className="p-2.5 rounded-xl border hover:bg-emerald-50"><RefreshCw size={18} className="text-gray-600" /></button>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <StatCard icon={<Package size={24} />} label="Total Active Meters" value={stats.total} color="bg-blue-100 text-blue-600" />
                 <StatCard icon={<CheckCircle size={24} />} label="Assigned (Claimed)" value={stats.assigned} color="bg-green-100 text-green-600" />
                 <StatCard icon={<Clock size={24} />} label="Unassigned" value={stats.unassigned} color="bg-yellow-100 text-yellow-600" />
             </div>
 
-            {/* Search */}
             <div className="bg-white rounded-xl shadow-sm border p-4">
                 <div className="relative">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by meter number, consumer name, phone, or type..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500"
-                    />
+                    <input type="text" placeholder="Search by meter number, consumer name, phone, or type..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500" />
                 </div>
             </div>
 
-            {/* Meters Table */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
                 <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
@@ -228,14 +215,11 @@ export default function GenerateBillsPage() {
                             paginatedMeters.map((meter, idx) => (
                                 <tr key={meter._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                                     <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}</td>
-                                    <td className="px-6 py-4">
-                                        {meter.consumerInfo?.name || <span className="text-gray-400">Unregistered</span>}
-                                    </td>
+                                    <td className="px-6 py-4">{meter.consumerInfo?.name || <span className="text-gray-400">Unregistered</span>}</td>
                                     <td className="px-6 py-4 capitalize">{meter.consumerType || 'residential'}</td>
                                     <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                            }`}>
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                             {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
                                             {meter.claimedBy ? 'Assigned' : 'Unassigned'}
                                         </span>
@@ -264,7 +248,6 @@ export default function GenerateBillsPage() {
                 )}
             </div>
 
-            {/* Generate Modal */}
             {showModal && selectedMeter && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
@@ -272,25 +255,21 @@ export default function GenerateBillsPage() {
                             <h3 className="text-xl font-bold flex items-center gap-2"><Calculator size={20} className="text-emerald-600" /> Generate Bill</h3>
                             <button onClick={() => setShowModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} /></button>
                         </div>
-
                         <div className="space-y-4">
                             <div className="bg-gray-50 rounded-lg p-4">
                                 <p className="font-medium">{selectedMeter.consumerInfo?.name || 'Unregistered Consumer'}</p>
                                 <p className="text-xs text-gray-500">Meter: {selectedMeter.meterNumber} | Type: {selectedMeter.consumerType || 'residential'}</p>
                             </div>
-
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Previous Reading (kWh)</label>
                                     <input type="number" value={prevReading} onChange={e => setPrevReading(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2.5 bg-gray-50" />
-                                    <p className="text-xs text-gray-400 mt-1">Auto-filled from last reading</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Current Reading (kWh)</label>
                                     <input type="number" value={currReading} onChange={e => setCurrReading(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500" min={prevReading} />
                                 </div>
                             </div>
-
                             {preview && (
                                 <div className="bg-emerald-50 rounded-lg p-4 space-y-2">
                                     <h4 className="font-semibold text-emerald-800">Bill Preview</h4>
@@ -299,21 +278,15 @@ export default function GenerateBillsPage() {
                                     <div className="flex justify-between font-bold text-emerald-700 border-t border-emerald-200 pt-2"><span>Total Amount</span><span>৳{preview.amount.toLocaleString()}</span></div>
                                 </div>
                             )}
-
                             {message && (
                                 <div className={`p-3 rounded-lg flex items-start gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                                     {message.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
                                     <p className="text-sm">{message.text}</p>
                                 </div>
                             )}
-
                             <div className="flex justify-end gap-3 pt-2">
                                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-                                <button
-                                    onClick={handleGenerate}
-                                    disabled={generating || !preview || currReading <= prevReading}
-                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
-                                >
+                                <button onClick={handleGenerate} disabled={generating || !preview || currReading <= prevReading} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
                                     {generating ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
                                     {generating ? 'Generating...' : `Generate Bill (৳${preview?.amount?.toLocaleString() || '0'})`}
                                 </button>
