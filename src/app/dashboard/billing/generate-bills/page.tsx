@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
-    PlusCircle, Calculator, CheckCircle, AlertCircle, X, Zap, Package
+    PlusCircle, Calculator, CheckCircle, AlertCircle, X, Zap, Package, Clock
 } from 'lucide-react';
 
 interface Meter {
@@ -56,12 +56,10 @@ export default function GenerateBillsPage() {
         const token = getCookie('token');
         if (!token) { setError('Not authenticated'); setLoading(false); return; }
         try {
-            // Fetch ALL meters (assigned + added, active only)
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/all`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            // Filter only active meters
             setMeters(Array.isArray(data) ? data.filter((m: Meter) => m.status !== 'inactive') : []);
         } catch {
             setError('Failed to load meters');
@@ -158,14 +156,13 @@ export default function GenerateBillsPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Generation failed');
             setMessage({ type: 'success', text: `Bill generated! Amount: ৳${preview.amount.toLocaleString()}` });
-            // Update lastReading in UI
             setPrevReading(preview.currReading);
             setCurrReading(0);
             setPreview(null);
             setTimeout(() => {
                 setShowModal(false);
                 setMessage(null);
-                fetchMeters(); // refresh to show updated lastReading
+                fetchMeters();
             }, 2000);
         } catch (err: any) {
             setMessage({ type: 'error', text: err.message });
