@@ -29,11 +29,11 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/xen/profile', label: 'Profile', icon: <User size={20} /> },
     ],
     connection: [
-        { href: '/dashboard/connection_wing', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { href: '/dashboard/connection_wing/applications', label: 'Applications', icon: <FileText size={20} /> },
-        { href: '/dashboard/connection_wing/completed', label: 'Completed', icon: <AlertTriangle size={20} /> },
-        { href: '/dashboard/connection_wing/add-meter', label: 'Add Meter', icon: <Link2 size={20} /> },
-        { href: '/dashboard/connection_wing/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/dashboard/connection', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/connection/applications', label: 'Applications', icon: <FileText size={20} /> },
+        { href: '/dashboard/connection/completed', label: 'Completed', icon: <AlertTriangle size={20} /> },
+        { href: '/dashboard/connection/add-meter', label: 'Add Meter', icon: <Link2 size={20} /> },
+        { href: '/dashboard/connection/profile', label: 'Profile', icon: <User size={20} /> },
     ],
     billing: [
         { href: '/dashboard/billing', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
