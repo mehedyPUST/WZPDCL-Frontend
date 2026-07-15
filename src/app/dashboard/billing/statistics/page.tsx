@@ -18,7 +18,7 @@ export default function BillingStatisticsPage() {
     const [error, setError] = useState('');
     const [monthlyAmount, setMonthlyAmount] = useState<any[]>([]);
     const [monthlyCount, setMonthlyCount] = useState<any[]>([]);
-    const [paidVsUnpaid, setPaidVsUnpaid] = useState<any[]>([]);
+    const [paidVsUnpaid, setPaidVsUnpaid] = useState<any[]>([]); // ✅ state name corrected
     const [summary, setSummary] = useState({ totalCollected: 0, totalDue: 0, totalBills: 0 });
 
     useEffect(() => {
@@ -30,7 +30,6 @@ export default function BillingStatisticsPage() {
             .then(res => res.json())
             .then(data => {
                 const bills = Array.isArray(data) ? data : [];
-                // আজকের মাস
                 const currentMonth = new Date().toLocaleString('default', { month: 'short', year: 'numeric' });
 
                 // মাসিক অ্যামাউন্ট ও কাউন্ট
@@ -58,7 +57,7 @@ export default function BillingStatisticsPage() {
                 });
                 const paidAmount = currentBills.filter((b: any) => b.status === 'paid').reduce((s: number, b: any) => s + (b.amount || 0), 0);
                 const unpaidAmount = currentBills.filter((b: any) => b.status !== 'paid').reduce((s: number, b: any) => s + (b.amount || 0), 0);
-                setPaidVsDue([
+                setPaidVsUnpaid([   // ✅ set function name fix
                     { name: 'Paid', value: paidAmount },
                     { name: 'Due', value: unpaidAmount },
                 ]);
