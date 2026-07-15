@@ -1,3 +1,4 @@
+// src/app/dashboard/billing/generate-bills/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -42,6 +43,7 @@ export default function GenerateBillsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Generate bill modal
     const [showModal, setShowModal] = useState(false);
     const [selectedMeter, setSelectedMeter] = useState<Meter | null>(null);
     const [prevReading, setPrevReading] = useState(0);
@@ -50,11 +52,14 @@ export default function GenerateBillsPage() {
     const [generating, setGenerating] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-    // ✅ বিলিং মাস
+    // Billing month
     const [billingMonth, setBillingMonth] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
+
+    // Set of meter numbers that already have a bill for the current billing month
+    const [generatedMeterSet, setGeneratedMeterSet] = useState<Set<string>>(new Set());
 
     const fetchMeters = async () => {
         const token = getCookie('token');
@@ -72,7 +77,35 @@ export default function GenerateBillsPage() {
         }
     };
 
-    useEffect(() => { fetchMeters(); }, []);
+    const fetchGeneratedBills = async () => {
+        const token = getCookie('token');
+        if (!token) return;
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bills/all`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const bills = await res.json();
+            if (Array.isArray(bills)) {
+                const set = new Set<string>();
+                bills.forEach((b: any) => {
+                    if (b.billingMonth === billingMonth) {
+                        set.add(b.meterNumber);
+                    }
+                });
+                setGeneratedMeterSet(set);
+            }
+        } catch {
+            // ignore
+        }
+    };
+
+    useEffect(() => {
+        fetchMeters();
+    }, []);
+
+    useEffect(() => {
+        fetchGeneratedBills();
+    }, [billingMonth]);
 
     const filteredMeters = useMemo(() => {
         if (!searchTerm.trim()) return meters;
@@ -152,19 +185,20 @@ export default function GenerateBillsPage() {
                     consumerType: selectedMeter.consumerType || 'residential',
                     prevReading: preview.prevReading,
                     currReading: preview.currReading,
-                    billingMonth,          // ✅ পাঠানো হচ্ছে
+                    billingMonth,
                 }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Generation failed');
             setMessage({ type: 'success', text: `Bill generated! Amount: ৳${preview.amount.toLocaleString()}` });
+            // Add this meter to the generated set so the button hides
+            setGeneratedMeterSet(prev => new Set(prev).add(selectedMeter.meterNumber));
             setPrevReading(preview.currReading);
             setCurrReading(0);
             setPreview(null);
             setTimeout(() => {
                 setShowModal(false);
                 setMessage(null);
-                fetchMeters();
             }, 2000);
         } catch (err: any) {
             setMessage({ type: 'error', text: err.message });
@@ -184,13 +218,13 @@ export default function GenerateBillsPage() {
                         <div className="p-2 bg-emerald-100 rounded-xl"><PlusCircle size={28} className="text-emerald-600" /></div>
                         Generate Bills
                     </h2>
-                    <p className="text-gray-500 mt-1 ml-14">Create bills for all meters — one bill per meter per month</p>
+                    <p className="text-gray-500 mt-1 ml-14">Create bills for all meters — registered & unregistered consumers</p>
                 </div>
                 <button onClick={fetchMeters} className="p-2.5 rounded-xl border hover:bg-emerald-50"><RefreshCw size={18} className="text-gray-600" /></button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard icon={<Package size={24} />} label="Total Meters" value={stats.total} color="bg-blue-100 text-blue-600" />
+                <StatCard icon={<Package size={24} />} label="Total Active Meters" value={stats.total} color="bg-blue-100 text-blue-600" />
                 <StatCard icon={<CheckCircle size={24} />} label="Assigned (Claimed)" value={stats.assigned} color="bg-green-100 text-green-600" />
                 <StatCard icon={<Clock size={24} />} label="Unassigned" value={stats.unassigned} color="bg-yellow-100 text-yellow-600" />
             </div>
@@ -198,7 +232,13 @@ export default function GenerateBillsPage() {
             <div className="bg-white rounded-xl shadow-sm border p-4">
                 <div className="relative">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input type="text" placeholder="Search by meter number, consumer name, phone, or type..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500" />
+                    <input
+                        type="text"
+                        placeholder="Search by meter number, consumer name, phone, or type..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500"
+                    />
                 </div>
             </div>
 
@@ -224,25 +264,35 @@ export default function GenerateBillsPage() {
                                 </div>
                             </td></tr>
                         ) : (
-                            paginatedMeters.map((meter, idx) => (
-                                <tr key={meter._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                                    <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}</td>
-                                    <td className="px-6 py-4">{meter.consumerInfo?.name || <span className="text-gray-400">Unregistered</span>}</td>
-                                    <td className="px-6 py-4 capitalize">{meter.consumerType || 'residential'}</td>
-                                    <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                            {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                            {meter.claimedBy ? 'Assigned' : 'Unassigned'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <button onClick={() => openModal(meter)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 flex items-center gap-1 mx-auto">
-                                            <Calculator size={14} /> Generate Bill
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
+                            paginatedMeters.map((meter, idx) => {
+                                const alreadyGenerated = generatedMeterSet.has(meter.meterNumber);
+                                return (
+                                    <tr key={meter._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                        <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}</td>
+                                        <td className="px-6 py-4">{meter.consumerInfo?.name || <span className="text-gray-400">Unregistered</span>}</td>
+                                        <td className="px-6 py-4 capitalize">{meter.consumerType || 'residential'}</td>
+                                        <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                                {meter.claimedBy ? 'Assigned' : 'Unassigned'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {alreadyGenerated ? (
+                                                <span className="text-xs text-green-600 font-medium flex items-center justify-center gap-1">
+                                                    <CheckCircle size={14} /> Bill Generated
+                                                </span>
+                                            ) : (
+                                                <button onClick={() => openModal(meter)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 flex items-center gap-1 mx-auto">
+                                                    <Calculator size={14} /> Generate Bill
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
@@ -274,7 +324,7 @@ export default function GenerateBillsPage() {
                                 <p className="text-xs text-gray-500">Meter: {selectedMeter.meterNumber} | Type: {selectedMeter.consumerType || 'residential'}</p>
                             </div>
 
-                            {/* ✅ বিলিং মাস সিলেক্টর */}
+                            {/* Billing Month */}
                             <div>
                                 <label className="block text-sm font-medium mb-1">Billing Month</label>
                                 <div className="relative">
