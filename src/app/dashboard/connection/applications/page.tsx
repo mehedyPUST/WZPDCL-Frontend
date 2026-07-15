@@ -1,12 +1,13 @@
-// src/app/dashboard/connection/applications/page.tsx
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
     Eye, X, CheckCircle, Clock, Wrench, Zap, Filter
 } from 'lucide-react';
+
+// ... বাকি কোড অপরিবর্তিত, শুধু ওপরে React ইম্পোর্ট আছে
 
 interface Connection {
     _id: string;
@@ -31,7 +32,6 @@ export default function ConnectionApplicationsPage() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Action states
     const [selectedConn, setSelectedConn] = useState<Connection | null>(null);
     const [showAddMeterModal, setShowAddMeterModal] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
@@ -57,7 +57,6 @@ export default function ConnectionApplicationsPage() {
 
     useEffect(() => { fetchConnections(); }, []);
 
-    // Filter & search
     const filteredConnections = useMemo(() => {
         let result = connections;
         if (filterStatus !== 'all') {
@@ -81,7 +80,6 @@ export default function ConnectionApplicationsPage() {
         currentPage * ITEMS_PER_PAGE
     );
 
-    // Stats
     const stats = useMemo(() => {
         const total = connections.length;
         const pending = connections.filter(c => c.status === 'forwarded_to_wing').length;
@@ -90,7 +88,6 @@ export default function ConnectionApplicationsPage() {
         return { total, pending, working, completed };
     }, [connections]);
 
-    // Action handlers
     const handleSendTeam = async (id: string) => {
         const token = getCookie('token');
         if (!token) return;
