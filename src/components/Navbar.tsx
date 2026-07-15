@@ -29,7 +29,7 @@ const Navbar = () => {
                 id: payload.userId,
                 name: payload.name || payload.email,
                 email: payload.email,
-                role: payload.role,
+                role: payload.role,   // "admin", "xen", "billing" etc.
             });
         } catch (err) {
             console.error('Token decode failed', err);
@@ -45,24 +45,25 @@ const Navbar = () => {
         router.push('/login');
     };
 
-    const getDashboardPath = (role: string) => {
+    const getDashboardPath = (role: string): string => {
         const paths: Record<string, string> = {
             admin: '/dashboard/admin',
             xen: '/dashboard/xen',
             connection_wing: '/dashboard/connection_wing',
             complaint_manager: '/dashboard/complaint_manager',
-            billing_wings: '/dashboard/billing',
+            billing: '/dashboard/billing',          // ✅ "billing" key
             consumer: '/dashboard/consumer',
         };
+        return paths[role] || '/dashboard/consumer';
     };
 
-    const getRoleColor = (role: string) => {
+    const getRoleColor = (role: string): string => {
         const colors: Record<string, string> = {
             admin: 'bg-purple-500',
             xen: 'bg-blue-500',
             connection_wing: 'bg-orange-500',
             complaint_manager: 'bg-red-500',
-            billing_wings: 'bg-teal-500',
+            billing: 'bg-teal-500',                 // ✅ "billing" key
             consumer: 'bg-emerald-500',
         };
         return colors[role] || 'bg-gray-500';
