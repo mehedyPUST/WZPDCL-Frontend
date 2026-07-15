@@ -41,6 +41,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/billing/all-bills', label: 'All Bills', icon: <FileText size={20} /> },
         { href: '/dashboard/billing/all-consumers', label: 'Consumers', icon: <Users size={20} /> },
         { href: '/dashboard/billing/generate-bills', label: 'Generate Bills', icon: <FileText size={20} /> },
+        { href: '/dashboard/billing/statistics', label: 'Statistics', icon: <FileText size={20} /> },
     ],
     complaint: [
         { href: '/dashboard/complaint_manager', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
