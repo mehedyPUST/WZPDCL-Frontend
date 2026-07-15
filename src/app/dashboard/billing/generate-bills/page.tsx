@@ -1,4 +1,3 @@
-// src/app/dashboard/billing/generate-bills/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -59,9 +58,9 @@ export default function GenerateBillsPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            console.log('Fetched meters:', data); // Debug log
-            // শুধু inactive বাদে সব দেখাও
-            setMeters(Array.isArray(data) ? data.filter((m: Meter) => m.status !== 'inactive') : []);
+            console.log('Fetched meters:', data);
+            // ✅ কোনো ফিল্টার ছাড়াই সব মিটার দেখাও
+            setMeters(Array.isArray(data) ? data : []);
         } catch {
             setError('Failed to load meters');
         } finally {
@@ -78,7 +77,7 @@ export default function GenerateBillsPage() {
             m.meterNumber?.toLowerCase().includes(term) ||
             m.consumerInfo?.name?.toLowerCase().includes(term) ||
             m.consumerInfo?.phone?.includes(term) ||
-            m.consumerType?.toLowerCase().includes(term)
+            (m.consumerType || '')?.toLowerCase().includes(term)
         );
     }, [meters, searchTerm]);
 
@@ -186,7 +185,7 @@ export default function GenerateBillsPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard icon={<Package size={24} />} label="Total Active Meters" value={stats.total} color="bg-blue-100 text-blue-600" />
+                <StatCard icon={<Package size={24} />} label="Total Meters" value={stats.total} color="bg-blue-100 text-blue-600" />
                 <StatCard icon={<CheckCircle size={24} />} label="Assigned (Claimed)" value={stats.assigned} color="bg-green-100 text-green-600" />
                 <StatCard icon={<Clock size={24} />} label="Unassigned" value={stats.unassigned} color="bg-yellow-100 text-yellow-600" />
             </div>
