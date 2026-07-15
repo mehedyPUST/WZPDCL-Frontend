@@ -59,6 +59,8 @@ export default function GenerateBillsPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
+            console.log('Fetched meters:', data); // Debug log
+            // শুধু inactive বাদে সব দেখাও
             setMeters(Array.isArray(data) ? data.filter((m: Meter) => m.status !== 'inactive') : []);
         } catch {
             setError('Failed to load meters');
@@ -210,7 +212,13 @@ export default function GenerateBillsPage() {
                     </thead>
                     <tbody className="divide-y">
                         {paginatedMeters.length === 0 ? (
-                            <tr><td colSpan={6} className="px-6 py-20 text-center text-gray-400">No meters found</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-20 text-center text-gray-400">
+                                <div className="flex flex-col items-center gap-2">
+                                    <Package size={32} className="opacity-30" />
+                                    <p>No meters found</p>
+                                    <p className="text-xs">Add meters from Connection Wing → Meters Management</p>
+                                </div>
+                            </td></tr>
                         ) : (
                             paginatedMeters.map((meter, idx) => (
                                 <tr key={meter._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
