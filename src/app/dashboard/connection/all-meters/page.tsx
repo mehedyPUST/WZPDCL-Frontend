@@ -94,6 +94,12 @@ export default function AllMetersPage() {
         setShowDetailModal(true);
     };
 
+    const openReplace = (meter: Meter) => {
+        setReplaceOldNumber(meter.meterNumber);
+        setReplaceNewNumber('');
+        setShowReplaceModal(true);
+    };
+
     // Replace handler
     const handleReplace = async () => {
         if (!replaceOldNumber || !replaceNewNumber) {
@@ -145,18 +151,9 @@ export default function AllMetersPage() {
                     </h2>
                     <p className="text-gray-500 mt-1 ml-14">Complete list of all electricity meters in the system</p>
                 </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setShowReplaceModal(true)}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-                    >
-                        <Replace size={16} />
-                        Replace Meter
-                    </button>
-                    <button onClick={fetchMeters} className="p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50 transition-colors">
-                        <RefreshCw size={18} className="text-gray-600" />
-                    </button>
-                </div>
+                <button onClick={fetchMeters} className="p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50 transition-colors">
+                    <RefreshCw size={18} className="text-gray-600" />
+                </button>
             </div>
 
             {message && (
@@ -215,7 +212,7 @@ export default function AllMetersPage() {
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consumer</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Added</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Details</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -257,10 +254,23 @@ export default function AllMetersPage() {
                                         <td className="px-6 py-4 text-gray-500 text-xs">
                                             {meter.createdAt ? new Date(meter.createdAt).toLocaleDateString('en-BD', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}
                                         </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <button onClick={() => openDetail(meter)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600 transition-colors">
-                                                <Eye size={18} />
-                                            </button>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button
+                                                    onClick={() => openDetail(meter)}
+                                                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600 transition-colors"
+                                                    title="View Details"
+                                                >
+                                                    <Eye size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={() => openReplace(meter)}
+                                                    className="p-2 rounded-lg hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 transition-colors"
+                                                    title="Replace Meter"
+                                                >
+                                                    <Replace size={18} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -332,7 +342,9 @@ export default function AllMetersPage() {
                             onChange={(e) => setReplaceOldNumber(e.target.value)}
                             className="w-full border rounded-lg px-3 py-2.5 mb-4"
                             placeholder="e.g., METER-001"
+                            disabled
                         />
+                        <p className="text-xs text-gray-400 -mt-3 mb-4">Auto-filled from selected meter</p>
                         <label className="block text-sm font-medium mb-2">New Meter Number</label>
                         <input
                             type="text"
