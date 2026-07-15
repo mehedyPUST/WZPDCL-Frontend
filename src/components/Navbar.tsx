@@ -54,7 +54,6 @@ const Navbar = () => {
             billing_wings: '/dashboard/billing',
             consumer: '/dashboard/consumer',
         };
-        return paths[role] || '/dashboard/consumer';
     };
 
     const getRoleColor = (role: string) => {
