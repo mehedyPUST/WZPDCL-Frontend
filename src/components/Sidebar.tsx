@@ -32,6 +32,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/connection', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/connection/applications', label: 'Applications', icon: <FileText size={20} /> },
         { href: '/dashboard/connection/meters', label: 'All Meters', icon: <AlertTriangle size={20} /> },
+        { href: '/dashboard/connection/new-connection-stats', label: 'Statistics', icon: <AlertTriangle size={20} /> },
 
         { href: '/dashboard/connection/profile', label: 'Profile', icon: <User size={20} /> },
     ],
