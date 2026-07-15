@@ -1,244 +1,144 @@
-// src/app/dashboard/connection/meters/page.tsx
+// src/app/dashboard/connection/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
+import Link from 'next/link';
 import {
-    Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
-    Eye, X, CheckCircle, Clock, Zap, Filter, Replace, PlusCircle,
-    Package, User, Phone, MapPin, Trash2, AlertCircle, Info
+    Loader2, Zap, PlusCircle, CheckCircle, Clock,
+    RefreshCw, Users, FileText, Wrench, Eye, X,
+    Package, AlertCircle, TrendingUp, ArrowRight
 } from 'lucide-react';
 
-interface Meter {
+interface Connection {
     _id: string;
-    meterNumber: string;
-    claimedBy: string | null;
-    consumerInfo?: {
-        name: string;
-        address: string;
-        phone: string;
-    };
-    addedByConnectionWing?: boolean;
-    status?: string;
-    lastReading?: number;
+    applicationId: string;
+    applicantName: string;
+    mobile: string;
+    connectionType: string;
+    loadRequired: number;
+    status: string;
+    meterAssigned?: string;
+    address?: string;
     createdAt: string;
 }
 
-const ITEMS_PER_PAGE = 10;
-
-export default function ConnectionMetersPage() {
-    const [meters, setMeters] = useState<Meter[]>([]);
+export default function ConnectionWingDashboard() {
+    const [connections, setConnections] = useState<Connection[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState('all');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [selectedMeter, setSelectedMeter] = useState<Meter | null>(null);
+    const [showAddMeterModal, setShowAddMeterModal] = useState(false);
+    const [selectedConn, setSelectedConn] = useState<Connection | null>(null);
+    const [meterNumber, setMeterNumber] = useState('');
+    const [actionLoading, setActionLoading] = useState(false);
+    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
 
-    // Replace
-    const [showReplaceModal, setShowReplaceModal] = useState(false);
-    const [replaceOldNumber, setReplaceOldNumber] = useState('');
-    const [replaceNewNumber, setReplaceNewNumber] = useState('');
-    const [replaceLoading, setReplaceLoading] = useState(false);
-
-    // Add
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [addMeterNumber, setAddMeterNumber] = useState('');
-    const [addConsumerName, setAddConsumerName] = useState('');
-    const [addConsumerPhone, setAddConsumerPhone] = useState('');
-    const [addConsumerAddress, setAddConsumerAddress] = useState('');
-    const [addConsumerType, setAddConsumerType] = useState('residential');
-    const [addLastReading, setAddLastReading] = useState('');
-    const [addLoading, setAddLoading] = useState(false);
-    const [addAvailability, setAddAvailability] = useState<{
-        checked: boolean; exists: boolean; message: string;
-    }>({ checked: false, exists: false, message: '' });
-
-    // Remove inactive meter
-    const [removeLoading, setRemoveLoading] = useState<string | null>(null);
-
-    const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-    const fetchMeters = async () => {
+    const fetchConnections = async () => {
         const token = getCookie('token');
         if (!token) { setError('Not authenticated'); setLoading(false); return; }
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/all`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/connections/all`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            setMeters(Array.isArray(data) ? data : []);
+            setConnections(Array.isArray(data) ? data : []);
         } catch {
-            setError('Failed to load meters');
+            setError('Failed to load data');
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { fetchMeters(); }, []);
-
-    // Check meter availability on typing
-    useEffect(() => {
-        if (!addMeterNumber.trim()) {
-            setAddAvailability({ checked: false, exists: false, message: '' });
-            return;
-        }
-        const timer = setTimeout(async () => {
-            const token = getCookie('token');
-            if (!token) return;
-            try {
-                const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/meters/check?number=${addMeterNumber}`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                const data = await res.json();
-                setAddAvailability({
-                    checked: true,
-                    exists: data.exists,
-                    message: data.exists
-                        ? 'This meter number already exists in the system.'
-                        : 'Meter number is available.',
-                });
-            } catch {
-                setAddAvailability({ checked: false, exists: false, message: '' });
-            }
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [addMeterNumber]);
-
-    const filteredMeters = useMemo(() => {
-        let result = meters;
-        if (filterStatus !== 'all') {
-            if (filterStatus === 'claimed') result = result.filter(m => m.claimedBy !== null);
-            else if (filterStatus === 'unclaimed') result = result.filter(m => m.claimedBy === null && m.status !== 'inactive');
-            else if (filterStatus === 'inactive') result = result.filter(m => m.status === 'inactive');
-        }
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase();
-            result = result.filter(m =>
-                m.meterNumber?.toLowerCase().includes(term) ||
-                m.consumerInfo?.name?.toLowerCase().includes(term) ||
-                m.consumerInfo?.phone?.includes(term)
-            );
-        }
-        return result;
-    }, [meters, searchTerm, filterStatus]);
-
-    const totalPages = Math.ceil(filteredMeters.length / ITEMS_PER_PAGE);
-    const paginatedMeters = filteredMeters.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    useEffect(() => { fetchConnections(); }, []);
 
     const stats = useMemo(() => {
-        const total = meters.length;
-        const claimed = meters.filter(m => m.claimedBy !== null).length;
-        const unclaimed = meters.filter(m => m.claimedBy === null && m.status !== 'inactive').length;
-        const inactive = meters.filter(m => m.status === 'inactive').length;
-        return { total, claimed, unclaimed, inactive };
-    }, [meters]);
+        const total = connections.length;
+        const pending = connections.filter(c => c.status === 'forwarded_to_wing').length;
+        const inProgress = connections.filter(c => c.status === 'teamAssigned').length;
+        const completed = connections.filter(c => c.status === 'completed' || c.status === 'implemented').length;
+        const metersAssigned = connections.filter(c => c.meterAssigned).length;
+        return { total, pending, inProgress, completed, metersAssigned };
+    }, [connections]);
 
-    const openDetail = (meter: Meter) => { setSelectedMeter(meter); setShowDetailModal(true); };
+    const pendingConnections = useMemo(() => {
+        return connections.filter(c => c.status === 'forwarded_to_wing' || c.status === 'teamAssigned').slice(0, 5);
+    }, [connections]);
 
-    const openReplace = (meter: Meter) => {
-        setReplaceOldNumber(meter.meterNumber);
-        setReplaceNewNumber('');
-        setShowReplaceModal(true);
-    };
+    const recentCompleted = useMemo(() => {
+        return connections
+            .filter(c => c.status === 'completed' || c.status === 'implemented')
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 4);
+    }, [connections]);
 
-    const handleReplace = async () => {
-        if (!replaceOldNumber || !replaceNewNumber) {
-            setMessage({ type: 'error', text: 'Both old and new meter numbers are required.' });
-            return;
-        }
+    const handleSendTeam = async (id: string) => {
         const token = getCookie('token');
         if (!token) return;
-        setReplaceLoading(true);
+        setActionLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/replace`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/connections/connection-action/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ oldMeterNumber: replaceOldNumber, newMeterNumber: replaceNewNumber }),
+                body: JSON.stringify({ action: 'sendTeam' }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Replace failed');
-            setMessage({ type: 'success', text: 'Meter replaced successfully!' });
-            setShowReplaceModal(false);
-            setReplaceOldNumber('');
-            setReplaceNewNumber('');
-            fetchMeters();
+            if (!res.ok) throw new Error(data.message || 'Failed');
+            fetchConnections();
+            setMessage({ type: 'success', text: 'Team dispatched successfully!' });
+            setTimeout(() => setMessage(null), 2000);
         } catch (err: any) {
             setMessage({ type: 'error', text: err.message });
         } finally {
-            setReplaceLoading(false);
+            setActionLoading(false);
         }
     };
 
-    const handleAddMeter = async () => {
-        if (!addMeterNumber.trim()) {
-            setMessage({ type: 'error', text: 'Meter number is required' });
-            return;
-        }
-        if (addAvailability.exists) {
-            setMessage({ type: 'error', text: 'This meter number already exists. Please use a different number.' });
-            return;
-        }
+    const handleComplete = async (id: string) => {
+        if (!meterNumber) return alert('Please enter meter number');
         const token = getCookie('token');
         if (!token) return;
-        setAddLoading(true);
+        setActionLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/consumers/add`, {
-                method: 'POST',
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/connections/connection-action/${id}`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({
-                    meterNumber: addMeterNumber,
-                    name: addConsumerName,
-                    phone: addConsumerPhone,
-                    address: addConsumerAddress,
-                    consumerType: addConsumerType,
-                    lastReading: Number(addLastReading) || 0,
-                }),
+                body: JSON.stringify({ action: 'complete', meterNumber }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Failed to add meter');
-            setMessage({ type: 'success', text: 'Meter added successfully!' });
-            setShowAddModal(false);
-            resetAddForm();
-            fetchMeters();
+            if (!res.ok) throw new Error(data.message || 'Failed');
+            setShowAddMeterModal(false);
+            setMeterNumber('');
+            setSelectedConn(null);
+            fetchConnections();
+            setMessage({ type: 'success', text: 'Connection completed & meter assigned!' });
+            setTimeout(() => setMessage(null), 3000);
         } catch (err: any) {
             setMessage({ type: 'error', text: err.message });
         } finally {
-            setAddLoading(false);
+            setActionLoading(false);
         }
     };
 
-    const handleRemoveInactive = async (meterId: string) => {
-        if (!confirm('Permanently delete this inactive meter? This action cannot be undone.')) return;
-        const token = getCookie('token');
-        if (!token) return;
-        setRemoveLoading(meterId);
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/${meterId}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Failed to remove');
-            setMessage({ type: 'success', text: 'Inactive meter removed permanently!' });
-            fetchMeters();
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
-        } finally {
-            setRemoveLoading(null);
-        }
+    const openAddMeter = (conn: Connection) => {
+        setSelectedConn(conn);
+        setMeterNumber('');
+        setShowAddMeterModal(true);
     };
 
-    const resetAddForm = () => {
-        setAddMeterNumber('');
-        setAddConsumerName('');
-        setAddConsumerPhone('');
-        setAddConsumerAddress('');
-        setAddConsumerType('residential');
-        setAddLastReading('');
-        setAddAvailability({ checked: false, exists: false, message: '' });
+    const openDetail = (conn: Connection) => {
+        setSelectedConn(conn);
+        setShowDetailModal(true);
+    };
+
+    const getStatusBadge = (status: string) => {
+        const map: Record<string, { color: string; label: string; icon: any }> = {
+            forwarded_to_wing: { color: 'bg-blue-100 text-blue-700', label: 'Pending', icon: Clock },
+            teamAssigned: { color: 'bg-indigo-100 text-indigo-700', label: 'In Progress', icon: Wrench },
+            completed: { color: 'bg-green-100 text-green-700', label: 'Completed', icon: CheckCircle },
+            implemented: { color: 'bg-emerald-100 text-emerald-700', label: 'Implemented', icon: Zap },
+        };
+        return map[status] || { color: 'bg-gray-100 text-gray-700', label: status, icon: Clock };
     };
 
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-emerald-600" size={48} /></div>;
@@ -250,16 +150,21 @@ export default function ConnectionMetersPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                        <div className="p-2 bg-emerald-100 rounded-xl"><Zap size={28} className="text-emerald-600" /></div>
-                        Meters Management
+                        <div className="p-2 bg-emerald-100 rounded-xl">
+                            <Wrench size={28} className="text-emerald-600" />
+                        </div>
+                        Connection Wing Dashboard
                     </h2>
-                    <p className="text-gray-500 mt-1 ml-14">Add, view, replace and manage all electricity meters</p>
+                    <p className="text-gray-500 mt-1 ml-14">Manage approved connection applications & installations</p>
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 flex items-center gap-2">
-                        <PlusCircle size={16} /> Add New Meter
+                    <Link href="/dashboard/connection/meters" className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+                        <Package size={16} />
+                        Manage Meters
+                    </Link>
+                    <button onClick={fetchConnections} className="p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50 transition-colors">
+                        <RefreshCw size={18} className="text-gray-600" />
                     </button>
-                    <button onClick={fetchMeters} className="p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50"><RefreshCw size={18} className="text-gray-600" /></button>
                 </div>
             </div>
 
@@ -271,210 +176,193 @@ export default function ConnectionMetersPage() {
                 </div>
             )}
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard icon={<Zap size={24} />} label="Total" value={stats.total} color="bg-blue-100 text-blue-600" />
-                <StatCard icon={<CheckCircle size={24} />} label="Claimed" value={stats.claimed} color="bg-green-100 text-green-600" />
-                <StatCard icon={<Clock size={24} />} label="Unclaimed" value={stats.unclaimed} color="bg-yellow-100 text-yellow-600" />
-                <StatCard icon={<Trash2 size={24} />} label="Inactive" value={stats.inactive} color="bg-red-100 text-red-600" />
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <StatCard icon={<FileText size={24} />} label="Total" value={stats.total} color="bg-blue-100 text-blue-600" />
+                <StatCard icon={<Clock size={24} />} label="Pending" value={stats.pending} color="bg-yellow-100 text-yellow-600" />
+                <StatCard icon={<Wrench size={24} />} label="In Progress" value={stats.inProgress} color="bg-indigo-100 text-indigo-600" />
+                <StatCard icon={<CheckCircle size={24} />} label="Completed" value={stats.completed} color="bg-green-100 text-green-600" />
+                <StatCard icon={<Zap size={24} />} label="Meters Assigned" value={stats.metersAssigned} color="bg-purple-100 text-purple-600" />
             </div>
 
-            {/* Search & Filter */}
-            <div className="bg-white rounded-xl shadow-sm border p-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input type="text" placeholder="Search by meter number, consumer name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Pending Applications */}
+                <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <div className="px-6 py-4 border-b bg-gradient-to-r from-yellow-50 to-white flex items-center justify-between">
+                        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                            <Clock size={20} className="text-yellow-600" />
+                            Pending Applications
+                        </h3>
+                        <Link href="/dashboard/connection/applications" className="text-xs text-emerald-600 hover:underline flex items-center gap-1">
+                            View All <ArrowRight size={14} />
+                        </Link>
                     </div>
-                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2.5 border rounded-lg bg-gray-50 text-sm">
-                        <option value="all">All</option>
-                        <option value="claimed">Claimed</option>
-                        <option value="unclaimed">Unclaimed</option>
-                        <option value="inactive">Inactive</option>
-                    </select>
-                    <button onClick={() => { setSearchTerm(''); setFilterStatus('all'); }} className="px-4 py-2.5 border rounded-lg hover:bg-gray-50 flex items-center gap-2"><RefreshCw size={16} /> Reset</button>
-                </div>
-            </div>
-
-            {/* Meters Table */}
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                        <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Meter #</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Consumer</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Last Reading</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {paginatedMeters.length === 0 ? (
-                            <tr><td colSpan={5} className="px-6 py-20 text-center text-gray-400">No meters found</td></tr>
-                        ) : (
-                            paginatedMeters.map((meter) => (
-                                <tr key={meter._id} className="hover:bg-emerald-50/50">
-                                    <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}
-                                        {meter.status === 'inactive' && <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Inactive</span>}
-                                    </td>
-                                    <td className="px-6 py-4">{meter.consumerInfo?.name || '-'}</td>
-                                    <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                            {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                            {meter.claimedBy ? 'Claimed' : 'Unclaimed'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex justify-center gap-2">
-                                            <button onClick={() => openDetail(meter)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600" title="View Details">
-                                                <Eye size={18} />
-                                            </button>
-                                            {meter.status !== 'inactive' && (
-                                                <button onClick={() => openReplace(meter)} className="p-2 rounded-lg hover:bg-indigo-100 text-gray-500 hover:text-indigo-600" title="Replace Meter">
-                                                    <Replace size={18} />
-                                                </button>
-                                            )}
-                                            {meter.status === 'inactive' && (
-                                                <button onClick={() => handleRemoveInactive(meter._id)} disabled={removeLoading === meter._id} className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600" title="Delete Permanently">
-                                                    {removeLoading === meter._id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} />}
-                                                </button>
-                                            )}
+                    {pendingConnections.length === 0 ? (
+                        <div className="px-6 py-12 text-center text-gray-400">
+                            <CheckCircle size={32} className="mx-auto mb-2 opacity-30" />
+                            <p>No pending applications</p>
+                        </div>
+                    ) : (
+                        <div className="divide-y">
+                            {pendingConnections.map(conn => {
+                                const badge = getStatusBadge(conn.status);
+                                const StatusIcon = badge.icon;
+                                return (
+                                    <div key={conn._id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                        <Users size={16} className="text-emerald-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-800">{conn.applicantName}</p>
+                                                        <p className="text-xs text-gray-400">{conn.applicationId} · {conn.connectionType} · {conn.loadRequired} kW</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+                                                    <StatusIcon size={12} />
+                                                    {badge.label}
+                                                </span>
+                                                {conn.status === 'forwarded_to_wing' && (
+                                                    <button onClick={() => handleSendTeam(conn._id)} disabled={actionLoading} className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors">
+                                                        Send Team
+                                                    </button>
+                                                )}
+                                                {conn.status === 'teamAssigned' && (
+                                                    <button onClick={() => openAddMeter(conn)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors">
+                                                        Complete
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-                {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t flex justify-between text-sm">
-                        <span>Page {currentPage} of {totalPages}</span>
-                        <div className="flex gap-1">
-                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded hover:bg-gray-100"><ChevronLeft size={18} /></button>
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded text-sm ${currentPage === page ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100'}`}>{page}</button>
-                            ))}
-                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded hover:bg-gray-100"><ChevronRight size={18} /></button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Quick Stats & Links */}
+                <div className="space-y-4">
+                    {/* Today's Summary */}
+                    <div className="bg-white rounded-xl shadow-sm border p-6">
+                        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                            <TrendingUp size={20} className="text-emerald-600" />
+                            Quick Summary
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Today's Assigned</span>
+                                <span className="font-medium">0</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">This Week</span>
+                                <span className="font-medium">{stats.completed}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">Meters Available</span>
+                                <span className="font-medium text-emerald-600">--</span>
+                            </div>
                         </div>
                     </div>
-                )}
+
+                    {/* Quick Links */}
+                    <div className="bg-white rounded-xl shadow-sm border p-6">
+                        <h3 className="font-semibold text-gray-800 mb-4">Quick Actions</h3>
+                        <div className="space-y-2">
+                            <Link href="/dashboard/connection/applications" className="block w-full px-4 py-2.5 border rounded-lg text-sm hover:bg-emerald-50 text-gray-700 flex items-center gap-2">
+                                <FileText size={16} className="text-emerald-600" /> View All Applications
+                            </Link>
+                            <Link href="/dashboard/connection/meters" className="block w-full px-4 py-2.5 border rounded-lg text-sm hover:bg-emerald-50 text-gray-700 flex items-center gap-2">
+                                <Package size={16} className="text-indigo-600" /> Manage Meters
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Recently Completed */}
+                    <div className="bg-white rounded-xl shadow-sm border p-6">
+                        <h3 className="font-semibold text-gray-800 mb-4">Recently Completed</h3>
+                        {recentCompleted.length === 0 ? (
+                            <p className="text-sm text-gray-400">No completed connections yet</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {recentCompleted.map(conn => (
+                                    <div key={conn._id} className="flex items-center gap-3">
+                                        <CheckCircle size={16} className="text-green-500" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{conn.applicantName}</p>
+                                            <p className="text-xs text-gray-400">{conn.connectionType}</p>
+                                        </div>
+                                        {conn.meterAssigned && (
+                                            <span className="text-xs font-mono text-emerald-600">{conn.meterAssigned}</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Detail Modal */}
-            {showDetailModal && selectedMeter && (
+            {showDetailModal && selectedConn && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-6 border border-gray-100">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-gray-800">Meter Details</h3>
+                            <h3 className="text-xl font-bold text-gray-800">Application Details</h3>
                             <button onClick={() => setShowDetailModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} className="text-gray-500" /></button>
                         </div>
                         <div className="space-y-3 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-500">Meter Number</span><span className="font-mono font-medium">{selectedMeter.meterNumber}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">App ID</span><span className="font-mono">{selectedConn.applicationId}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Applicant</span><span className="font-medium">{selectedConn.applicantName}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Mobile</span><span>{selectedConn.mobile}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Connection Type</span><span className="capitalize">{selectedConn.connectionType}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">Load</span><span>{selectedConn.loadRequired} kW</span></div>
                             <div className="flex justify-between">
                                 <span className="text-gray-500">Status</span>
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedMeter.status === 'inactive' ? 'bg-red-100 text-red-700' : selectedMeter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {selectedMeter.status === 'inactive' ? 'Inactive' : selectedMeter.claimedBy ? 'Claimed' : 'Unclaimed'}
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusBadge(selectedConn.status).color}`}>
+                                    {getStatusBadge(selectedConn.status).label}
                                 </span>
                             </div>
-                            {selectedMeter.consumerInfo && (
-                                <>
-                                    <div className="flex justify-between"><span className="text-gray-500">Consumer Name</span><span>{selectedMeter.consumerInfo.name || '-'}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">Phone</span><span>{selectedMeter.consumerInfo.phone || '-'}</span></div>
-                                    <div className="flex justify-between"><span className="text-gray-500">Address</span><span>{selectedMeter.consumerInfo.address || '-'}</span></div>
-                                </>
-                            )}
-                            <div className="flex justify-between"><span className="text-gray-500">Last Reading</span><span>{selectedMeter.lastReading !== undefined ? `${selectedMeter.lastReading} kWh` : '-'}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-500">Added On</span><span>{new Date(selectedMeter.createdAt).toLocaleString()}</span></div>
+                            {selectedConn.address && <div className="flex justify-between"><span className="text-gray-500">Address</span><span>{selectedConn.address}</span></div>}
+                            {selectedConn.meterAssigned && <div className="flex justify-between"><span className="text-gray-500">Meter</span><span className="font-mono text-emerald-700 font-medium">{selectedConn.meterAssigned}</span></div>}
                         </div>
-                        <div className="mt-6 flex justify-end gap-3">
-                            {selectedMeter.status !== 'inactive' && (
-                                <button onClick={() => { setShowDetailModal(false); openReplace(selectedMeter); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Replace</button>
-                            )}
-                            <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Close</button>
+                        <div className="mt-6 flex justify-end">
+                            <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Replace Modal */}
-            {showReplaceModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
+            {/* Add Meter Modal */}
+            {showAddMeterModal && selectedConn && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 border border-gray-100">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold">Replace Meter</h3>
-                            <button onClick={() => setShowReplaceModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} /></button>
+                            <h3 className="text-xl font-bold text-gray-800">Complete & Assign Meter</h3>
+                            <button onClick={() => setShowAddMeterModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} className="text-gray-500" /></button>
                         </div>
-                        <label className="block text-sm font-medium mb-2">Old Meter Number</label>
-                        <input type="text" value={replaceOldNumber} className="w-full border rounded-lg px-3 py-2.5 mb-4 bg-gray-100" disabled />
-                        <label className="block text-sm font-medium mb-2">New Meter Number</label>
-                        <input type="text" value={replaceNewNumber} onChange={(e) => setReplaceNewNumber(e.target.value)} className="w-full border rounded-lg px-3 py-2.5 mb-4" placeholder="e.g., METER-002" />
+                        <p className="text-sm text-gray-600 mb-4">Application: <span className="font-mono font-medium">{selectedConn.applicationId}</span></p>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Meter Number</label>
+                        <input
+                            type="text"
+                            value={meterNumber}
+                            onChange={(e) => setMeterNumber(e.target.value)}
+                            placeholder="Enter meter number"
+                            className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 mb-6"
+                        />
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setShowReplaceModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button onClick={handleReplace} disabled={replaceLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
-                                {replaceLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />} Replace
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Modal */}
-            {showAddModal && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold flex items-center gap-2"><PlusCircle size={20} className="text-emerald-600" /> Add New Meter</h3>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} /></button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Meter Number <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <Package size={18} className="absolute left-3 top-3 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        value={addMeterNumber}
-                                        onChange={(e) => setAddMeterNumber(e.target.value)}
-                                        className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${addAvailability.checked && addAvailability.exists ? 'border-red-300 bg-red-50' :
-                                                addAvailability.checked && !addAvailability.exists ? 'border-green-300 bg-green-50' : ''
-                                            }`}
-                                        required
-                                    />
-                                </div>
-                                {addAvailability.checked && (
-                                    <p className={`text-xs mt-1 flex items-center gap-1 ${addAvailability.exists ? 'text-red-600' : 'text-green-600'
-                                        }`}>
-                                        {addAvailability.exists ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
-                                        {addAvailability.message}
-                                    </p>
-                                )}
-                            </div>
-                            <SelectField label="Consumer Type" value={addConsumerType} onChange={setAddConsumerType} options={['residential', 'commercial', 'industrial']} />
-                            <InputWithIcon label="Consumer Name" value={addConsumerName} onChange={setAddConsumerName} Icon={User} />
-                            <InputWithIcon label="Phone Number" value={addConsumerPhone} onChange={setAddConsumerPhone} Icon={Phone} />
-                            <div className="col-span-2">
-                                <label className="block text-sm font-medium mb-1">Address</label>
-                                <div className="relative">
-                                    <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
-                                    <textarea value={addConsumerAddress} onChange={(e) => setAddConsumerAddress(e.target.value)} rows={2} className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 resize-none" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Last Month Reading (kWh)</label>
-                                <input type="number" value={addLastReading} onChange={(e) => setAddLastReading(e.target.value)} className="w-full border rounded-lg px-3 py-2.5" />
-                                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Info size={12} /> This will be used as previous reading for first bill generation</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-3 mt-6">
-                            <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                            <button onClick={() => setShowAddMeterModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
                             <button
-                                onClick={handleAddMeter}
-                                disabled={addLoading || (addAvailability.checked && addAvailability.exists)}
+                                onClick={() => handleComplete(selectedConn._id)}
+                                disabled={actionLoading || !meterNumber.trim()}
                                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
                             >
-                                {addLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                Add Meter
+                                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                {actionLoading ? 'Processing...' : 'Complete & Assign Meter'}
                             </button>
                         </div>
                     </div>
@@ -486,35 +374,12 @@ export default function ConnectionMetersPage() {
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
     return (
-        <div className="bg-white rounded-xl shadow-sm p-5 border flex items-center gap-4">
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
             <div className={`p-3 rounded-lg ${color}`}>{icon}</div>
             <div>
                 <p className="text-sm text-gray-500">{label}</p>
                 <p className="text-2xl font-bold text-gray-800">{value}</p>
             </div>
-        </div>
-    );
-}
-
-function InputWithIcon({ label, value, onChange, Icon, required }: any) {
-    return (
-        <div>
-            <label className="block text-sm font-medium mb-1">{label} {required && <span className="text-red-500">*</span>}</label>
-            <div className="relative">
-                <Icon size={18} className="absolute left-3 top-3 text-gray-400" />
-                <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500" required={required} />
-            </div>
-        </div>
-    );
-}
-
-function SelectField({ label, value, onChange, options }: any) {
-    return (
-        <div>
-            <label className="block text-sm font-medium mb-1">{label}</label>
-            <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2.5">
-                {options.map((opt: string) => <option key={opt} value={opt} className="capitalize">{opt}</option>)}
-            </select>
         </div>
     );
 }

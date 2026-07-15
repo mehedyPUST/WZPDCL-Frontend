@@ -5,7 +5,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
-    Eye, X, CheckCircle, Clock, Zap, Filter, Replace, PlusCircle, Package, User, Phone, MapPin
+    Eye, X, CheckCircle, Clock, Zap, Filter, Replace, PlusCircle,
+    Package, User, Phone, MapPin, Trash2, AlertCircle, Info
 } from 'lucide-react';
 
 interface Meter {
@@ -35,13 +36,13 @@ export default function ConnectionMetersPage() {
     const [selectedMeter, setSelectedMeter] = useState<Meter | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
 
-    // Replace meter states
+    // Replace
     const [showReplaceModal, setShowReplaceModal] = useState(false);
     const [replaceOldNumber, setReplaceOldNumber] = useState('');
     const [replaceNewNumber, setReplaceNewNumber] = useState('');
     const [replaceLoading, setReplaceLoading] = useState(false);
 
-    // Add meter states
+    // Add
     const [showAddModal, setShowAddModal] = useState(false);
     const [addMeterNumber, setAddMeterNumber] = useState('');
     const [addConsumerName, setAddConsumerName] = useState('');
@@ -50,6 +51,12 @@ export default function ConnectionMetersPage() {
     const [addConsumerType, setAddConsumerType] = useState('residential');
     const [addLastReading, setAddLastReading] = useState('');
     const [addLoading, setAddLoading] = useState(false);
+    const [addAvailability, setAddAvailability] = useState<{
+        checked: boolean; exists: boolean; message: string;
+    }>({ checked: false, exists: false, message: '' });
+
+    // Remove inactive meter
+    const [removeLoading, setRemoveLoading] = useState<string | null>(null);
 
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -71,11 +78,41 @@ export default function ConnectionMetersPage() {
 
     useEffect(() => { fetchMeters(); }, []);
 
+    // Check meter availability on typing
+    useEffect(() => {
+        if (!addMeterNumber.trim()) {
+            setAddAvailability({ checked: false, exists: false, message: '' });
+            return;
+        }
+        const timer = setTimeout(async () => {
+            const token = getCookie('token');
+            if (!token) return;
+            try {
+                const res = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/meters/check?number=${addMeterNumber}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                const data = await res.json();
+                setAddAvailability({
+                    checked: true,
+                    exists: data.exists,
+                    message: data.exists
+                        ? 'This meter number already exists in the system.'
+                        : 'Meter number is available.',
+                });
+            } catch {
+                setAddAvailability({ checked: false, exists: false, message: '' });
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [addMeterNumber]);
+
     const filteredMeters = useMemo(() => {
         let result = meters;
         if (filterStatus !== 'all') {
             if (filterStatus === 'claimed') result = result.filter(m => m.claimedBy !== null);
-            else if (filterStatus === 'unclaimed') result = result.filter(m => m.claimedBy === null);
+            else if (filterStatus === 'unclaimed') result = result.filter(m => m.claimedBy === null && m.status !== 'inactive');
+            else if (filterStatus === 'inactive') result = result.filter(m => m.status === 'inactive');
         }
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
@@ -89,22 +126,17 @@ export default function ConnectionMetersPage() {
     }, [meters, searchTerm, filterStatus]);
 
     const totalPages = Math.ceil(filteredMeters.length / ITEMS_PER_PAGE);
-    const paginatedMeters = filteredMeters.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    const paginatedMeters = filteredMeters.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
     const stats = useMemo(() => {
         const total = meters.length;
         const claimed = meters.filter(m => m.claimedBy !== null).length;
-        const unclaimed = total - claimed;
-        return { total, claimed, unclaimed };
+        const unclaimed = meters.filter(m => m.claimedBy === null && m.status !== 'inactive').length;
+        const inactive = meters.filter(m => m.status === 'inactive').length;
+        return { total, claimed, unclaimed, inactive };
     }, [meters]);
 
-    const openDetail = (meter: Meter) => {
-        setSelectedMeter(meter);
-        setShowDetailModal(true);
-    };
+    const openDetail = (meter: Meter) => { setSelectedMeter(meter); setShowDetailModal(true); };
 
     const openReplace = (meter: Meter) => {
         setReplaceOldNumber(meter.meterNumber);
@@ -112,7 +144,6 @@ export default function ConnectionMetersPage() {
         setShowReplaceModal(true);
     };
 
-    // Replace handler
     const handleReplace = async () => {
         if (!replaceOldNumber || !replaceNewNumber) {
             setMessage({ type: 'error', text: 'Both old and new meter numbers are required.' });
@@ -141,10 +172,13 @@ export default function ConnectionMetersPage() {
         }
     };
 
-    // Add meter handler
     const handleAddMeter = async () => {
         if (!addMeterNumber.trim()) {
             setMessage({ type: 'error', text: 'Meter number is required' });
+            return;
+        }
+        if (addAvailability.exists) {
+            setMessage({ type: 'error', text: 'This meter number already exists. Please use a different number.' });
             return;
         }
         const token = getCookie('token');
@@ -176,6 +210,27 @@ export default function ConnectionMetersPage() {
         }
     };
 
+    const handleRemoveInactive = async (meterId: string) => {
+        if (!confirm('Permanently delete this inactive meter? This action cannot be undone.')) return;
+        const token = getCookie('token');
+        if (!token) return;
+        setRemoveLoading(meterId);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/${meterId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to remove');
+            setMessage({ type: 'success', text: 'Inactive meter removed permanently!' });
+            fetchMeters();
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.message });
+        } finally {
+            setRemoveLoading(null);
+        }
+    };
+
     const resetAddForm = () => {
         setAddMeterNumber('');
         setAddConsumerName('');
@@ -183,6 +238,7 @@ export default function ConnectionMetersPage() {
         setAddConsumerAddress('');
         setAddConsumerType('residential');
         setAddLastReading('');
+        setAddAvailability({ checked: false, exists: false, message: '' });
     };
 
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-emerald-600" size={48} /></div>;
@@ -194,153 +250,112 @@ export default function ConnectionMetersPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                        <div className="p-2 bg-emerald-100 rounded-xl">
-                            <Zap size={28} className="text-emerald-600" />
-                        </div>
+                        <div className="p-2 bg-emerald-100 rounded-xl"><Zap size={28} className="text-emerald-600" /></div>
                         Meters Management
                     </h2>
-                    <p className="text-gray-500 mt-1 ml-14">Add, view, replace all electricity meters</p>
+                    <p className="text-gray-500 mt-1 ml-14">Add, view, replace and manage all electricity meters</p>
                 </div>
                 <div className="flex gap-2">
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 flex items-center gap-2"
-                    >
-                        <PlusCircle size={16} />
-                        Add New Meter
+                    <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 flex items-center gap-2">
+                        <PlusCircle size={16} /> Add New Meter
                     </button>
-                    <button onClick={fetchMeters} className="p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50 transition-colors">
-                        <RefreshCw size={18} className="text-gray-600" />
-                    </button>
+                    <button onClick={fetchMeters} className="p-2.5 rounded-xl border border-gray-200 hover:bg-emerald-50"><RefreshCw size={18} className="text-gray-600" /></button>
                 </div>
             </div>
 
             {message && (
                 <div className={`p-4 rounded-xl flex items-start gap-3 ${message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                    {message.type === 'success' ? <CheckCircle size={20} className="text-green-600" /> : <X size={20} className="text-red-600" />}
-                    <p className="text-sm text-gray-700">{message.text}</p>
+                    {message.type === 'success' ? <CheckCircle size={20} className="text-green-600" /> : <AlertCircle size={20} className="text-red-600" />}
+                    <p className={`text-sm ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>{message.text}</p>
                     <button onClick={() => setMessage(null)} className="ml-auto text-gray-400 hover:text-gray-600">✕</button>
                 </div>
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard icon={<Zap size={24} />} label="Total Meters" value={stats.total} color="bg-blue-100 text-blue-600" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard icon={<Zap size={24} />} label="Total" value={stats.total} color="bg-blue-100 text-blue-600" />
                 <StatCard icon={<CheckCircle size={24} />} label="Claimed" value={stats.claimed} color="bg-green-100 text-green-600" />
                 <StatCard icon={<Clock size={24} />} label="Unclaimed" value={stats.unclaimed} color="bg-yellow-100 text-yellow-600" />
+                <StatCard icon={<Trash2 size={24} />} label="Inactive" value={stats.inactive} color="bg-red-100 text-red-600" />
             </div>
 
             {/* Search & Filter */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="bg-white rounded-xl shadow-sm border p-4">
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by meter number, consumer name or phone..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50"
-                        />
+                        <input type="text" placeholder="Search by meter number, consumer name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-emerald-500" />
                     </div>
-                    <div className="relative">
-                        <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
-                            className="pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-emerald-500"
-                        >
-                            <option value="all">All Meters</option>
-                            <option value="claimed">Claimed</option>
-                            <option value="unclaimed">Unclaimed</option>
-                        </select>
-                    </div>
-                    <button onClick={() => { setSearchTerm(''); setFilterStatus('all'); }} className="px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-2">
-                        <RefreshCw size={16} /> Reset
-                    </button>
+                    <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2.5 border rounded-lg bg-gray-50 text-sm">
+                        <option value="all">All</option>
+                        <option value="claimed">Claimed</option>
+                        <option value="unclaimed">Unclaimed</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <button onClick={() => { setSearchTerm(''); setFilterStatus('all'); }} className="px-4 py-2.5 border rounded-lg hover:bg-gray-50 flex items-center gap-2"><RefreshCw size={16} /> Reset</button>
                 </div>
             </div>
 
             {/* Meters Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Meter #</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consumer</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Reading</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {paginatedMeters.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-20 text-center text-gray-400">
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Zap size={32} className="opacity-30" />
-                                            <p>No meters found</p>
-                                        </div>
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b">
+                        <tr>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Meter #</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Consumer</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Last Reading</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {paginatedMeters.length === 0 ? (
+                            <tr><td colSpan={5} className="px-6 py-20 text-center text-gray-400">No meters found</td></tr>
+                        ) : (
+                            paginatedMeters.map((meter) => (
+                                <tr key={meter._id} className="hover:bg-emerald-50/50">
+                                    <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}
+                                        {meter.status === 'inactive' && <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Inactive</span>}
                                     </td>
-                                </tr>
-                            ) : (
-                                paginatedMeters.map((meter, idx) => (
-                                    <tr key={meter._id} className={`hover:bg-emerald-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                                        <td className="px-6 py-4 font-mono text-gray-700 font-medium">
-                                            {meter.meterNumber}
-                                            {meter.status === 'inactive' && (
-                                                <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Inactive</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {meter.consumerInfo?.name ? (
-                                                <div>
-                                                    <p className="font-medium text-gray-800">{meter.consumerInfo.name}</p>
-                                                    <p className="text-xs text-gray-400">{meter.consumerInfo.phone || ''}</p>
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-400">-</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-700 font-medium">
-                                            {meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                                {meter.claimedBy ? 'Claimed' : 'Unclaimed'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => openDetail(meter)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600" title="View Details">
-                                                    <Eye size={18} />
-                                                </button>
+                                    <td className="px-6 py-4">{meter.consumerInfo?.name || '-'}</td>
+                                    <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                            {meter.claimedBy ? 'Claimed' : 'Unclaimed'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex justify-center gap-2">
+                                            <button onClick={() => openDetail(meter)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600" title="View Details">
+                                                <Eye size={18} />
+                                            </button>
+                                            {meter.status !== 'inactive' && (
                                                 <button onClick={() => openReplace(meter)} className="p-2 rounded-lg hover:bg-indigo-100 text-gray-500 hover:text-indigo-600" title="Replace Meter">
                                                     <Replace size={18} />
                                                 </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
+                                            )}
+                                            {meter.status === 'inactive' && (
+                                                <button onClick={() => handleRemoveInactive(meter._id)} disabled={removeLoading === meter._id} className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600" title="Delete Permanently">
+                                                    {removeLoading === meter._id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} />}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
                 {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                        <span className="text-sm text-gray-500">
-                            Page {currentPage} of {totalPages} ({filteredMeters.length} meters)
-                        </span>
-                        <div className="flex items-center gap-1">
-                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"><ChevronLeft size={18} /></button>
+                    <div className="px-6 py-4 border-t flex justify-between text-sm">
+                        <span>Page {currentPage} of {totalPages}</span>
+                        <div className="flex gap-1">
+                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded hover:bg-gray-100"><ChevronLeft size={18} /></button>
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded-lg text-sm font-medium ${currentPage === page ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}>{page}</button>
+                                <button key={page} onClick={() => setCurrentPage(page)} className={`w-8 h-8 rounded text-sm ${currentPage === page ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100'}`}>{page}</button>
                             ))}
-                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"><ChevronRight size={18} /></button>
+                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded hover:bg-gray-100"><ChevronRight size={18} /></button>
                         </div>
                     </div>
                 )}
@@ -358,8 +373,8 @@ export default function ConnectionMetersPage() {
                             <div className="flex justify-between"><span className="text-gray-500">Meter Number</span><span className="font-mono font-medium">{selectedMeter.meterNumber}</span></div>
                             <div className="flex justify-between">
                                 <span className="text-gray-500">Status</span>
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedMeter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {selectedMeter.claimedBy ? 'Claimed' : 'Unclaimed'}
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedMeter.status === 'inactive' ? 'bg-red-100 text-red-700' : selectedMeter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {selectedMeter.status === 'inactive' ? 'Inactive' : selectedMeter.claimedBy ? 'Claimed' : 'Unclaimed'}
                                 </span>
                             </div>
                             {selectedMeter.consumerInfo && (
@@ -372,19 +387,22 @@ export default function ConnectionMetersPage() {
                             <div className="flex justify-between"><span className="text-gray-500">Last Reading</span><span>{selectedMeter.lastReading !== undefined ? `${selectedMeter.lastReading} kWh` : '-'}</span></div>
                             <div className="flex justify-between"><span className="text-gray-500">Added On</span><span>{new Date(selectedMeter.createdAt).toLocaleString()}</span></div>
                         </div>
-                        <div className="mt-6 flex justify-end">
-                            <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+                        <div className="mt-6 flex justify-end gap-3">
+                            {selectedMeter.status !== 'inactive' && (
+                                <button onClick={() => { setShowDetailModal(false); openReplace(selectedMeter); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Replace</button>
+                            )}
+                            <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Close</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Replace Meter Modal */}
+            {/* Replace Modal */}
             {showReplaceModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 border border-gray-100">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-gray-800">Replace Meter</h3>
+                            <h3 className="text-xl font-bold">Replace Meter</h3>
                             <button onClick={() => setShowReplaceModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} /></button>
                         </div>
                         <label className="block text-sm font-medium mb-2">Old Meter Number</label>
@@ -394,77 +412,67 @@ export default function ConnectionMetersPage() {
                         <div className="flex justify-end gap-3">
                             <button onClick={() => setShowReplaceModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
                             <button onClick={handleReplace} disabled={replaceLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
-                                {replaceLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                                Replace
+                                {replaceLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />} Replace
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Add New Meter Modal */}
+            {/* Add Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-6 border border-gray-100 max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <PlusCircle size={20} className="text-emerald-600" />
-                                Add New Meter
-                            </h3>
-                            <button onClick={() => setShowAddModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} className="text-gray-500" /></button>
+                            <h3 className="text-xl font-bold flex items-center gap-2"><PlusCircle size={20} className="text-emerald-600" /> Add New Meter</h3>
+                            <button onClick={() => setShowAddModal(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} /></button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Meter Number <span className="text-red-500">*</span></label>
+                                <label className="block text-sm font-medium mb-1">Meter Number <span className="text-red-500">*</span></label>
                                 <div className="relative">
                                     <Package size={18} className="absolute left-3 top-3 text-gray-400" />
-                                    <input type="text" value={addMeterNumber} onChange={(e) => setAddMeterNumber(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+                                    <input
+                                        type="text"
+                                        value={addMeterNumber}
+                                        onChange={(e) => setAddMeterNumber(e.target.value)}
+                                        className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${addAvailability.checked && addAvailability.exists ? 'border-red-300 bg-red-50' :
+                                            addAvailability.checked && !addAvailability.exists ? 'border-green-300 bg-green-50' : ''
+                                            }`}
+                                        required
+                                    />
                                 </div>
+                                {addAvailability.checked && (
+                                    <p className={`text-xs mt-1 flex items-center gap-1 ${addAvailability.exists ? 'text-red-600' : 'text-green-600'
+                                        }`}>
+                                        {addAvailability.exists ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
+                                        {addAvailability.message}
+                                    </p>
+                                )}
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Consumer Type</label>
-                                <select value={addConsumerType} onChange={(e) => setAddConsumerType(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                                    <option value="residential">Residential</option>
-                                    <option value="commercial">Commercial</option>
-                                    <option value="industrial">Industrial</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Consumer Name</label>
-                                <div className="relative">
-                                    <User size={18} className="absolute left-3 top-3 text-gray-400" />
-                                    <input type="text" value={addConsumerName} onChange={(e) => setAddConsumerName(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                <div className="relative">
-                                    <Phone size={18} className="absolute left-3 top-3 text-gray-400" />
-                                    <input type="tel" value={addConsumerPhone} onChange={(e) => setAddConsumerPhone(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                </div>
-                            </div>
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                            <SelectField label="Consumer Type" value={addConsumerType} onChange={setAddConsumerType} options={['residential', 'commercial', 'industrial']} />
+                            <InputWithIcon label="Consumer Name" value={addConsumerName} onChange={setAddConsumerName} Icon={User} />
+                            <InputWithIcon label="Phone Number" value={addConsumerPhone} onChange={setAddConsumerPhone} Icon={Phone} />
+                            <div className="col-span-2">
+                                <label className="block text-sm font-medium mb-1">Address</label>
                                 <div className="relative">
                                     <MapPin size={18} className="absolute left-3 top-3 text-gray-400" />
-                                    <textarea value={addConsumerAddress} onChange={(e) => setAddConsumerAddress(e.target.value)} rows={2} className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none" />
+                                    <textarea value={addConsumerAddress} onChange={(e) => setAddConsumerAddress(e.target.value)} rows={2} className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 resize-none" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Last Month Reading (kWh)</label>
-                                <input
-                                    type="number"
-                                    value={addLastReading}
-                                    onChange={(e) => setAddLastReading(e.target.value)}
-                                    placeholder="Previous reading"
-                                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                />
-                                <p className="text-xs text-gray-400 mt-1">This will be used as previous reading when generating first bill</p>
+                                <label className="block text-sm font-medium mb-1">Last Month Reading (kWh)</label>
+                                <input type="number" value={addLastReading} onChange={(e) => setAddLastReading(e.target.value)} className="w-full border rounded-lg px-3 py-2.5" />
+                                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Info size={12} /> This will be used as previous reading for first bill generation</p>
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 mt-6">
                             <button onClick={() => setShowAddModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
-                            <button onClick={handleAddMeter} disabled={addLoading} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
+                            <button
+                                onClick={handleAddMeter}
+                                disabled={addLoading || (addAvailability.checked && addAvailability.exists)}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                            >
                                 {addLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                                 Add Meter
                             </button>
@@ -478,12 +486,35 @@ export default function ConnectionMetersPage() {
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
     return (
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 flex items-center gap-4">
+        <div className="bg-white rounded-xl shadow-sm p-5 border flex items-center gap-4">
             <div className={`p-3 rounded-lg ${color}`}>{icon}</div>
             <div>
                 <p className="text-sm text-gray-500">{label}</p>
                 <p className="text-2xl font-bold text-gray-800">{value}</p>
             </div>
+        </div>
+    );
+}
+
+function InputWithIcon({ label, value, onChange, Icon, required }: any) {
+    return (
+        <div>
+            <label className="block text-sm font-medium mb-1">{label} {required && <span className="text-red-500">*</span>}</label>
+            <div className="relative">
+                <Icon size={18} className="absolute left-3 top-3 text-gray-400" />
+                <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500" required={required} />
+            </div>
+        </div>
+    );
+}
+
+function SelectField({ label, value, onChange, options }: any) {
+    return (
+        <div>
+            <label className="block text-sm font-medium mb-1">{label}</label>
+            <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded-lg px-3 py-2.5">
+                {options.map((opt: string) => <option key={opt} value={opt} className="capitalize">{opt}</option>)}
+            </select>
         </div>
     );
 }
