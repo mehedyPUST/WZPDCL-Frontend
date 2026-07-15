@@ -29,7 +29,7 @@ const Navbar = () => {
                 id: payload.userId,
                 name: payload.name || payload.email,
                 email: payload.email,
-                role: payload.role || 'consumer',
+                role: payload.role,
             });
         } catch (err) {
             console.error('Token decode failed', err);
