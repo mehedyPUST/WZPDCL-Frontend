@@ -1,11 +1,10 @@
-// src/app/dashboard/billing/generate-bills/page.tsx
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
-    PlusCircle, Calculator, CheckCircle, AlertCircle, X, Zap, Package, Clock
+    PlusCircle, Calculator, CheckCircle, AlertCircle, X, Zap, Package, Clock, Calendar
 } from 'lucide-react';
 
 interface Meter {
@@ -51,37 +50,29 @@ export default function GenerateBillsPage() {
     const [generating, setGenerating] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+    // ✅ বিলিং মাস
+    const [billingMonth, setBillingMonth] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    });
+
     const fetchMeters = async () => {
         const token = getCookie('token');
-        if (!token) {
-            setError('Not authenticated');
-            setLoading(false);
-            return;
-        }
+        if (!token) { setError('Not authenticated'); setLoading(false); return; }
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/all`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            console.log('Raw response:', data);
-            if (Array.isArray(data)) {
-                setMeters(data);
-            } else if (data && Array.isArray(data.meters)) {
-                setMeters(data.meters);
-            } else {
-                setMeters([]);
-            }
-        } catch (err) {
+            setMeters(Array.isArray(data) ? data : []);
+        } catch {
             setError('Failed to load meters');
-            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchMeters();
-    }, []);
+    useEffect(() => { fetchMeters(); }, []);
 
     const filteredMeters = useMemo(() => {
         if (!searchTerm.trim()) return meters;
@@ -161,6 +152,7 @@ export default function GenerateBillsPage() {
                     consumerType: selectedMeter.consumerType || 'residential',
                     prevReading: preview.prevReading,
                     currReading: preview.currReading,
+                    billingMonth,          // ✅ পাঠানো হচ্ছে
                 }),
             });
             const data = await res.json();
@@ -192,7 +184,7 @@ export default function GenerateBillsPage() {
                         <div className="p-2 bg-emerald-100 rounded-xl"><PlusCircle size={28} className="text-emerald-600" /></div>
                         Generate Bills
                     </h2>
-                    <p className="text-gray-500 mt-1 ml-14">Create bills for all meters — registered & unregistered consumers</p>
+                    <p className="text-gray-500 mt-1 ml-14">Create bills for all meters — one bill per meter per month</p>
                 </div>
                 <button onClick={fetchMeters} className="p-2.5 rounded-xl border hover:bg-emerald-50"><RefreshCw size={18} className="text-gray-600" /></button>
             </div>
@@ -268,6 +260,7 @@ export default function GenerateBillsPage() {
                 )}
             </div>
 
+            {/* Generate Modal */}
             {showModal && selectedMeter && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
@@ -280,6 +273,22 @@ export default function GenerateBillsPage() {
                                 <p className="font-medium">{selectedMeter.consumerInfo?.name || 'Unregistered Consumer'}</p>
                                 <p className="text-xs text-gray-500">Meter: {selectedMeter.meterNumber} | Type: {selectedMeter.consumerType || 'residential'}</p>
                             </div>
+
+                            {/* ✅ বিলিং মাস সিলেক্টর */}
+                            <div>
+                                <label className="block text-sm font-medium mb-1">Billing Month</label>
+                                <div className="relative">
+                                    <Calendar size={18} className="absolute left-3 top-3 text-gray-400" />
+                                    <input
+                                        type="month"
+                                        value={billingMonth}
+                                        onChange={(e) => setBillingMonth(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1">Only one bill allowed per meter per month</p>
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium mb-1">Previous Reading (kWh)</label>
@@ -290,6 +299,7 @@ export default function GenerateBillsPage() {
                                     <input type="number" value={currReading} onChange={e => setCurrReading(Number(e.target.value))} className="w-full border rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500" min={prevReading} />
                                 </div>
                             </div>
+
                             {preview && (
                                 <div className="bg-emerald-50 rounded-lg p-4 space-y-2">
                                     <h4 className="font-semibold text-emerald-800">Bill Preview</h4>
@@ -298,12 +308,14 @@ export default function GenerateBillsPage() {
                                     <div className="flex justify-between font-bold text-emerald-700 border-t border-emerald-200 pt-2"><span>Total Amount</span><span>৳{preview.amount.toLocaleString()}</span></div>
                                 </div>
                             )}
+
                             {message && (
                                 <div className={`p-3 rounded-lg flex items-start gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                                     {message.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
                                     <p className="text-sm">{message.text}</p>
                                 </div>
                             )}
+
                             <div className="flex justify-end gap-3 pt-2">
                                 <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
                                 <button onClick={handleGenerate} disabled={generating || !preview || currReading <= prevReading} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2">
