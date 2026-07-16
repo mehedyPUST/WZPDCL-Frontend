@@ -61,9 +61,13 @@ export default function Sidebar({ role }: { role: string }) {
     const pathname = usePathname();
     const links = menuConfig[role] || [];
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
         removeCookie('token');
         removeCookie('user');
+        try {
+            const { authClient } = await import('@/lib/auth-client');
+            await authClient.signOut();
+        } catch { }
         window.location.href = '/login';
     };
 
