@@ -1,10 +1,9 @@
-// src/components/ClientDashboardLayout.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { setCookie } from '@/lib/cookies';
+import { setCookie, getCookie } from '@/lib/cookies';
 import { authClient } from '@/lib/auth-client';
 
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,25 +12,79 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        authClient.getSession()
-            .then(({ data }) => {
-                if (data?.user) {
-                    const userData = data.user as any;
-                    // ✅ সেশন থেকে accessToken (আমাদের ব্যাকএন্ড JWT) কুকিতে সংরক্ষণ
-                    const token = (data.session as any)?.accessToken || (data as any)?.accessToken;
-                    if (token) {
-                        setCookie('token', token, 7);
-                    }
+        // আগের token থাকলে আগে দেখাই
+        const existingToken = getCookie('token');
+        const existingUser = getCookie('user');
 
-                    setUser({
-                        id: userData.id,
-                        name: userData.name,
-                        email: userData.email,
-                        role: userData.role || 'consumer',
-                    });
-                } else {
+        if (existingToken && existingUser) {
+            try {
+                setUser(JSON.parse(existingUser));
+                setLoading(false);
+                return;
+            } catch { }
+        }
+
+        // better‑auth সেশন থেকে token বের করি
+        authClient.getSession()
+            .then(async ({ data }) => {
+                if (!data?.user) {
                     router.push('/login');
+                    return;
                 }
+
+                const userData = data.user as any;
+
+                // ✅ JWT token পেতে আমাদের backend-এ কল করি
+                let token = (data.session as any)?.accessToken || (data as any)?.accessToken;
+
+                if (!token) {
+                    // token না থাকলে login API কল করে token নেই
+                    try {
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: userData.email,
+                                // Google user হলে password দরকার নেই – backend google auth route use করব
+                            }),
+                        });
+                        // যদি email/password user না হয়ে google user হয়, we'll use google auth route
+                        if (!res.ok) {
+                            const googleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    googleId: userData.id, // better‑auth id (Google's id)
+                                    email: userData.email,
+                                    name: userData.name,
+                                    image: (userData as any).image || '',
+                                }),
+                            });
+                            const googleData = await googleRes.json();
+                            token = googleData.token;
+                        } else {
+                            const loginData = await res.json();
+                            token = loginData.token;
+                        }
+                    } catch (err) {
+                        console.error('Failed to get token:', err);
+                    }
+                }
+
+                if (token) {
+                    setCookie('token', token, 7);
+                    console.log('✅ Token cookie set');
+                }
+
+                const finalUser = {
+                    id: userData.id,
+                    name: userData.name,
+                    email: userData.email,
+                    role: userData.role || 'consumer',
+                };
+
+                setCookie('user', JSON.stringify(finalUser), 7);
+                setUser(finalUser);
             })
             .catch(() => router.push('/login'))
             .finally(() => setLoading(false));

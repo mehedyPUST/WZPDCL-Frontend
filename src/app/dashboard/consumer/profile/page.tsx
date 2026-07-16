@@ -1,3 +1,4 @@
+// src/app/dashboard/consumer/profile/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -130,7 +131,8 @@ export default function ConsumerProfilePage() {
             </div>
 
             {message && (
-                <div className={`p-4 rounded-lg flex items-start gap-3 ${message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <div className={`p-4 rounded-lg flex items-start gap-3 ${message.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                    }`}>
                     {message.type === 'success' ? <CheckCircle size={20} className="text-green-600 mt-0.5" /> : <AlertCircle size={20} className="text-red-600 mt-0.5" />}
                     <p className={`text-sm ${message.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>{message.text}</p>
                     <button onClick={() => setMessage(null)} className="ml-auto text-gray-400 hover:text-gray-600">✕</button>

@@ -1,7 +1,29 @@
 import { betterAuth } from "better-auth";
+import { MongoClient } from "mongodb";
+import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { nextCookies } from "better-auth/next-js";
 
+let client: MongoClient;
+async function getDb() {
+    if (!client) {
+        client = new MongoClient(process.env.MONGODB_URI!);
+        await client.connect();
+        console.log('✅ MongoDB connected for auth adapter');
+    }
+    return client.db(process.env.DB_NAME || 'WZPDCL-DB');
+}
+
+const dbPromise = getDb();
+
 export const auth = betterAuth({
+    database: mongodbAdapter(
+        await dbPromise,
+        {
+            client: client!,
+            // ✅ collection name কাস্টমাইজ করছি যাতে আমাদের "users" collection ব্যবহার হয়
+            collectionName: "users",
+        }
+    ),
     baseURL: process.env.NEXT_PUBLIC_APP_URL,
     secret: process.env.BETTER_AUTH_SECRET || "local-secret",
     plugins: [nextCookies()],
@@ -10,39 +32,39 @@ export const auth = betterAuth({
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            async profile(profile: any) {
-                // Google প্রোফাইল – id, email, name, picture
-                return {
-                    id: profile.id,           // ✅ real Google ID
-                    email: profile.email,
-                    name: profile.name,
-                    image: profile.picture,
-                };
-            },
         },
     },
     databaseHooks: {
         user: {
-            create: {
-                before: async (user) => {
-                    console.log("🔧 databaseHooks triggered for user:", user.email);
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            googleId: user.id,    // ✅ Google ID
-                            email: user.email,
-                            name: user.name,
-                            image: (user as any).image || "",
-                        }),
-                    });
-                    const data = await res.json();
-                    console.log("📥 Backend response in hook:", data);
-                    if (data?.user) {
-                        (user as any).role = data.user.role || "consumer";
-                        (user as any).token = data.token;
+            signIn: {
+                after: async (session, user) => {
+                    console.log("🔧 signIn.after triggered for:", user.email);
+                    try {
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                googleId: user.id,
+                                email: user.email,
+                                name: user.name,
+                                image: (user as any).image || "",
+                            }),
+                        });
+                        const data = await res.json();
+                        console.log("📥 Backend response in signIn hook:", data);
+                        if (data?.token) {
+                            const { cookies } = await import("next/headers");
+                            const cookieStore = await cookies();
+                            cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                            cookieStore.set("user", JSON.stringify({
+                                id: data.user.id, name: data.user.name,
+                                email: data.user.email, role: data.user.role,
+                            }), { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                            console.log("✅ Cookies updated from signIn hook");
+                        }
+                    } catch (err) {
+                        console.error("❌ Backend call failed in signIn hook:", err);
                     }
-                    return user;
                 },
             },
         },

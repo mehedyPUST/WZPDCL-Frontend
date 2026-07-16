@@ -1,4 +1,3 @@
-// src/app/(auth)/login/page.tsx
 'use client';
 
 import React, { useState, Suspense } from 'react';
@@ -17,7 +16,7 @@ function LoginForm() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
 
-    // -------- Email / Password Login --------
+    // Email/Password Login
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -36,21 +35,28 @@ function LoginForm() {
                 throw new Error(data.message || 'Login failed');
             }
 
-            // Save token & user in cookies
+            // Save cookies
             setCookie('token', data.token, 7);
-            setCookie('user', JSON.stringify(data.user), 7);
+            setCookie('user', JSON.stringify({
+                id: data.user.id,
+                name: data.user.name,
+                email: data.user.email,
+                role: data.user.role,
+            }), 7);
 
-            // Role-based redirect
+            // Small delay to ensure cookies are set
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Redirect based on role
             const rolePaths: Record<string, string> = {
                 admin: '/dashboard/admin',
                 xen: '/dashboard/xen',
                 connection_wing: '/dashboard/connection',
-                complaint_manager: '/dashboard/complaint_manager',
                 billing: '/dashboard/billing',
+                complaint_manager: '/dashboard/complaint_manager',
                 consumer: '/dashboard/consumer',
             };
-            const role = data.user.role || 'consumer';
-            router.push(rolePaths[role] || '/dashboard/consumer');
+            router.push(rolePaths[data.user.role] || '/dashboard/consumer');
         } catch (err: any) {
             setError(err.message || 'Invalid email or password');
         } finally {
@@ -58,7 +64,7 @@ function LoginForm() {
         }
     };
 
-    // -------- Google Login --------
+    // Google Login
     const handleGoogleLogin = async () => {
         setGoogleLoading(true);
         setError('');
@@ -67,9 +73,7 @@ function LoginForm() {
                 provider: 'google',
                 callbackURL: '/dashboard',
             });
-            // successful redirect-এর পর dashboard-এ চলে যাবে
         } catch (err: any) {
-            console.error('Google sign in failed', err);
             setError('Google sign in failed. Please try again.');
         } finally {
             setGoogleLoading(false);
@@ -79,7 +83,6 @@ function LoginForm() {
     return (
         <div className="min-h-screen bg-emerald-50 flex items-center justify-center px-4 py-8">
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full border border-emerald-100">
-                {/* Header */}
                 <div className="text-center mb-8">
                     <div className="bg-emerald-100 p-3 rounded-full inline-flex mb-3">
                         <Zap className="text-emerald-600" size={32} />
@@ -88,16 +91,13 @@ function LoginForm() {
                     <p className="text-gray-500 text-sm mt-1">Sign in to your WZPDCL account</p>
                 </div>
 
-                {/* Error message */}
                 {error && (
                     <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                         {error}
                     </div>
                 )}
 
-                {/* Login Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Email */}
                     <div className="relative">
                         <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
                         <input
@@ -110,7 +110,6 @@ function LoginForm() {
                         />
                     </div>
 
-                    {/* Password */}
                     <div className="relative">
                         <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
                         <input
@@ -121,16 +120,11 @@ function LoginForm() {
                             className="w-full pl-10 pr-12 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             required
                         />
-                        <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                        >
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400">
                             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                     </div>
 
-                    {/* Submit */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -141,7 +135,6 @@ function LoginForm() {
                     </button>
                 </form>
 
-                {/* Divider */}
                 <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-200"></div>
@@ -151,7 +144,6 @@ function LoginForm() {
                     </div>
                 </div>
 
-                {/* Google Button */}
                 <button
                     type="button"
                     onClick={handleGoogleLogin}
@@ -172,7 +164,6 @@ function LoginForm() {
                     <span>{googleLoading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
                 </button>
 
-                {/* Register Link */}
                 <p className="text-center text-sm text-gray-500 mt-6">
                     Don&apos;t have an account?{' '}
                     <Link href="/register" className="text-emerald-600 hover:text-emerald-700 font-medium">
@@ -186,13 +177,11 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <Suspense
-            fallback={
-                <div className="min-h-screen flex items-center justify-center bg-emerald-50">
-                    <Loader2 className="animate-spin text-emerald-600" size={32} />
-                </div>
-            }
-        >
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-emerald-50">
+                <Loader2 className="animate-spin text-emerald-600" size={32} />
+            </div>
+        }>
             <LoginForm />
         </Suspense>
     );
