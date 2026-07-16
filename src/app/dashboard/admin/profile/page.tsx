@@ -12,12 +12,14 @@ export default function AdminProfilePage() {
     const [passwordChanging, setPasswordChanging] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+    // Profile fields
     const [name, setName] = useState('');
     const [mobile, setMobile] = useState('');
     const [address, setAddress] = useState('');
     const [dob, setDob] = useState('');
     const [nid, setNid] = useState('');
 
+    // Password fields
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,10 +34,18 @@ export default function AdminProfilePage() {
             setLoading(false);
             return;
         }
+
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
         })
-            .then(res => res.json())
+            .then(res => {
+                // ✅ যদি HTML ফেরত আসে তবে JSON না পেয়ে এরর ধরো
+                const contentType = res.headers.get('content-type');
+                if (!res.ok || !contentType?.includes('application/json')) {
+                    throw new Error('Server returned non-JSON response');
+                }
+                return res.json();
+            })
             .then(data => {
                 if (data && data._id) {
                     setProfile(data);
@@ -48,7 +58,10 @@ export default function AdminProfilePage() {
                     setMessage({ type: 'error', text: 'Failed to load profile' });
                 }
             })
-            .catch(() => setMessage({ type: 'error', text: 'Error loading profile' }))
+            .catch(err => {
+                console.error('Profile fetch error:', err);
+                setMessage({ type: 'error', text: 'Could not load profile. Please try again.' });
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -68,11 +81,19 @@ export default function AdminProfilePage() {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ name, mobile, address, dob, nid }),
             });
+
+            const contentType = res.headers.get('content-type');
+            if (!res.ok || !contentType?.includes('application/json')) {
+                const text = await res.text();
+                console.error('Update failed, server response:', text);
+                throw new Error('Update failed');
+            }
+
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Update failed');
             setMessage({ type: 'success', text: 'Profile updated successfully!' });
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+            console.error('Update error:', err);
+            setMessage({ type: 'error', text: err.message || 'Update failed' });
         } finally {
             setSaving(false);
         }
@@ -98,14 +119,20 @@ export default function AdminProfilePage() {
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ currentPassword, newPassword }),
             });
+
+            const contentType = res.headers.get('content-type');
+            if (!res.ok || !contentType?.includes('application/json')) {
+                throw new Error('Password change failed');
+            }
+
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Password change failed');
             setMessage({ type: 'success', text: 'Password changed successfully!' });
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
         } catch (err: any) {
-            setMessage({ type: 'error', text: err.message });
+            console.error('Password change error:', err);
+            setMessage({ type: 'error', text: err.message || 'Password change failed' });
         } finally {
             setPasswordChanging(false);
         }
