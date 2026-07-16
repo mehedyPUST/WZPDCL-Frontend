@@ -1,10 +1,11 @@
+// src/app/payment-success/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -72,5 +73,17 @@ export default function PaymentSuccessPage() {
                 <p className="text-sm text-gray-400 mt-4">Redirecting to homepage...</p>
             </div>
         </div>
+    );
+}
+
+export default function PaymentSuccessPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-emerald-50 flex items-center justify-center">
+                <Loader2 size={48} className="animate-spin text-emerald-600" />
+            </div>
+        }>
+            <PaymentSuccessContent />
+        </Suspense>
     );
 }
