@@ -21,6 +21,7 @@ export const auth = betterAuth({
                         email: profile.email,
                         name: profile.name,
                         image: profile.picture,
+                        role: "consumer",
                     }),
                 });
                 const data = await res.json();
@@ -29,7 +30,7 @@ export const auth = betterAuth({
                     id: data.user.id,
                     email: data.user.email,
                     name: data.user.name,
-                    role: data.user.role,
+                    role: data.user.role || "consumer",
                     token: data.token,
                 };
             },

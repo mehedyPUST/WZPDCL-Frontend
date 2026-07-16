@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getCookie, removeCookie } from '@/lib/cookies';
+import { getCookie, removeCookie, setCookie } from '@/lib/cookies';
+import { authClient } from '@/lib/auth-client';
 import {
     Menu, X, User, LogOut, LayoutDashboard, Zap,
 } from 'lucide-react';
@@ -16,29 +17,67 @@ const Navbar = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = getCookie('token');
-        if (!token) {
+        const syncNavbar = async () => {
+            const token = getCookie('token');
+            if (token) {
+                try {
+                    // JWT decode (payload is the second part)
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    setUser({
+                        id: payload.userId || payload.id,
+                        name: payload.name || payload.email,
+                        email: payload.email,
+                        role: payload.role,   // "admin", "xen", "billing" etc.
+                    });
+                    setLoading(false);
+                    return;
+                } catch (err) {
+                    console.error('Token decode failed', err);
+                }
+            }
+
+            // Let's check better-auth session
+            try {
+                const { data } = await authClient.getSession();
+                if (data && data.session) {
+                    const sessionToken = (data.session as any).accessToken || (data.session as any).token || (data as any).accessToken;
+                    const userObj = data.user;
+                    if (sessionToken && userObj) {
+                        setCookie('token', sessionToken, 7);
+                        setCookie('user', JSON.stringify({
+                            id: userObj.id,
+                            _id: userObj.id,
+                            name: userObj.name,
+                            email: userObj.email,
+                            role: (userObj as any).role || 'consumer',
+                        }), 7);
+                        setUser({
+                            id: userObj.id,
+                            name: userObj.name,
+                            email: userObj.email,
+                            role: (userObj as any).role || 'consumer',
+                        });
+                        setLoading(false);
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to sync navbar with better-auth:", err);
+            }
+
             setUser(null);
             setLoading(false);
-            return;
-        }
-        try {
-            // JWT decode (payload is the second part)
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            setUser({
-                id: payload.userId,
-                name: payload.name || payload.email,
-                email: payload.email,
-                role: payload.role,   // "admin", "xen", "billing" etc.
-            });
-        } catch (err) {
-            console.error('Token decode failed', err);
-            setUser(null);
-        }
-        setLoading(false);
+        };
+
+        syncNavbar();
     }, [pathname]);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await authClient.signOut();
+        } catch (e) {
+            console.error("Sign out from better-auth failed:", e);
+        }
         removeCookie('token');
         removeCookie('user');
         setUser(null);

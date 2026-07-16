@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { getCookie } from '@/lib/cookies';
+import { getCookie, setCookie } from '@/lib/cookies';
+import { authClient } from '@/lib/auth-client';
 
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -11,21 +12,48 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = getCookie('token');
-        const userStr = getCookie('user');
+        const syncSession = async () => {
+            const token = getCookie('token');
+            const userStr = getCookie('user');
 
-        if (!token || !userStr) {
-            router.push('/login');
-            return;
-        }
+            if (token && userStr) {
+                try {
+                    setUser(JSON.parse(userStr));
+                    setLoading(false);
+                    return;
+                } catch {
+                    // Fall through to better-auth check
+                }
+            }
 
-        try {
-            setUser(JSON.parse(userStr));
-        } catch {
+            try {
+                const { data } = await authClient.getSession();
+                if (data && data.session) {
+                    const sessionToken = (data.session as any).accessToken || (data.session as any).token || (data as any).accessToken;
+                    const userObj = data.user;
+                    if (sessionToken && userObj) {
+                        setCookie('token', sessionToken, 7);
+                        const finalUser = {
+                            id: userObj.id,
+                            _id: userObj.id,
+                            name: userObj.name,
+                            email: userObj.email,
+                            role: (userObj as any).role || 'consumer',
+                        };
+                        setCookie('user', JSON.stringify(finalUser), 7);
+                        setUser(finalUser);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to sync session with better-auth:", err);
+            }
+
             router.push('/login');
-        } finally {
-            setLoading(false);
-        }
+        };
+
+        syncSession();
     }, []);
 
     if (loading) {
