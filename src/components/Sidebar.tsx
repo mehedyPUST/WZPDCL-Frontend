@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { removeCookie } from '@/lib/cookies';
+import { authClient } from '@/lib/auth-client';
 import {
     LayoutDashboard, FileText, Link2, AlertTriangle,
     DollarSign, User, Users, LogOut, BarChart3,
@@ -33,7 +34,6 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/connection/applications', label: 'Applications', icon: <FileText size={20} /> },
         { href: '/dashboard/connection/meters', label: 'All Meters', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/connection/new-connection-stats', label: 'Statistics', icon: <AlertTriangle size={20} /> },
-
         { href: '/dashboard/connection/profile', label: 'Profile', icon: <User size={20} /> },
     ],
     billing: [
@@ -57,50 +57,80 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
     ],
 };
 
-export default function Sidebar({ role }: { role: string }) {
+export default function Sidebar({
+    role,
+    isOpen,
+    onClose
+}: {
+    role: string;
+    isOpen?: boolean;
+    onClose?: () => void
+}) {
     const pathname = usePathname();
+    const router = useRouter();
     const links = menuConfig[role] || [];
 
     const handleLogout = async () => {
         removeCookie('token');
         removeCookie('user');
         try {
-            const { authClient } = await import('@/lib/auth-client');
             await authClient.signOut();
         } catch { }
-        window.location.href = '/login';
+        router.push('/login');
+    };
+
+    const handleLinkClick = () => {
+        if (onClose) onClose();
     };
 
     return (
-        <aside className="w-64 bg-emerald-800 text-white flex flex-col min-h-screen">
-            <div className="p-4 border-b border-emerald-700">
-                <h1 className="text-xl font-bold">WZPDCL</h1>
-                <p className="text-xs text-emerald-300 capitalize">{role}</p>
-            </div>
-            <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-                {links.map((link) => {
-                    const isActive = pathname === link.href;
-                    return (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${isActive ? 'bg-emerald-600' : 'hover:bg-emerald-700'}`}
-                        >
-                            {link.icon}
-                            <span>{link.label}</span>
-                        </Link>
-                    );
-                })}
-            </nav>
-            <div className="p-2 border-t border-emerald-700">
-                <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-red-600 transition-colors text-left"
-                >
-                    <LogOut size={18} />
-                    <span>Logout</span>
-                </button>
-            </div>
-        </aside>
+        <>
+            {/* Mobile overlay */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    onClick={onClose}
+                />
+            )}
+
+            {/* Sidebar */}
+            <aside className={`
+                fixed md:sticky top-16 md:top-0 left-0 h-[calc(100vh-4rem)] md:h-screen
+                w-64 bg-emerald-800 text-white flex flex-col
+                transform transition-transform duration-200 ease-in-out z-50
+                ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                md:translate-x-0
+            `}>
+                <div className="p-4 border-b border-emerald-700">
+                    <h1 className="text-xl font-bold">WZPDCL</h1>
+                    <p className="text-xs text-emerald-300 capitalize">{role}</p>
+                </div>
+                <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                    {links.map((link) => {
+                        const isActive = pathname === link.href;
+                        return (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={handleLinkClick}
+                                className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${isActive ? 'bg-emerald-600' : 'hover:bg-emerald-700'}`}
+                            >
+                                {link.icon}
+                                <span>{link.label}</span>
+                            </Link>
+                        );
+                    })}
+                </nav>
+                <div className="p-2 border-t border-emerald-700">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-red-600 transition-colors text-left"
+                    >
+                        <LogOut size={18} />
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </aside>
+        </>
     );
 }
