@@ -131,34 +131,36 @@ export default function NewConnectionsStatsPage() {
                 <div className="px-6 py-4 border-b bg-gray-50">
                     <h3 className="font-semibold text-gray-800">Monthly Breakdown</h3>
                 </div>
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Month</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Connections</th>
-                            <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trend</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {chartData.map((item, idx) => {
-                            const prev = idx > 0 ? chartData[idx - 1].connections : item.connections;
-                            const change = prev > 0 ? ((item.connections - prev) / prev) * 100 : 0;
-                            return (
-                                <tr key={item.month} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 font-medium">{item.month}</td>
-                                    <td className="px-6 py-4">{item.connections}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-500'
-                                            }`}>
-                                            {change > 0 ? '↑' : change < 0 ? '↓' : '−'}
-                                            {Math.abs(change).toFixed(1)}%
-                                        </span>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Month</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Connections</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {chartData.map((item, idx) => {
+                                const prev = idx > 0 ? chartData[idx - 1].connections : item.connections;
+                                const change = prev > 0 ? ((item.connections - prev) / prev) * 100 : 0;
+                                return (
+                                    <tr key={item.month} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-medium">{item.month}</td>
+                                        <td className="px-6 py-4">{item.connections}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1 text-xs font-medium ${change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-500'
+                                                }`}>
+                                                {change > 0 ? '↑' : change < 0 ? '↓' : '−'}
+                                                {Math.abs(change).toFixed(1)}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
