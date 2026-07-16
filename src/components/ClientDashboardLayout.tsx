@@ -1,9 +1,10 @@
+// src/components/ClientDashboardLayout.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { getCookie, setCookie } from '@/lib/cookies';
+import { setCookie } from '@/lib/cookies';
 import { authClient } from '@/lib/auth-client';
 
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
@@ -12,48 +13,28 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const syncSession = async () => {
-            const token = getCookie('token');
-            const userStr = getCookie('user');
-
-            if (token && userStr) {
-                try {
-                    setUser(JSON.parse(userStr));
-                    setLoading(false);
-                    return;
-                } catch {
-                    // Fall through to better-auth check
-                }
-            }
-
-            try {
-                const { data } = await authClient.getSession();
-                if (data && data.session) {
-                    const sessionToken = (data.session as any).accessToken || (data.session as any).token || (data as any).accessToken;
-                    const userObj = data.user;
-                    if (sessionToken && userObj) {
-                        setCookie('token', sessionToken, 7);
-                        const finalUser = {
-                            id: userObj.id,
-                            _id: userObj.id,
-                            name: userObj.name,
-                            email: userObj.email,
-                            role: (userObj as any).role || 'consumer',
-                        };
-                        setCookie('user', JSON.stringify(finalUser), 7);
-                        setUser(finalUser);
-                        setLoading(false);
-                        return;
+        authClient.getSession()
+            .then(({ data }) => {
+                if (data?.user) {
+                    const userData = data.user as any;
+                    // ✅ সেশন থেকে accessToken (আমাদের ব্যাকএন্ড JWT) কুকিতে সংরক্ষণ
+                    const token = (data.session as any)?.accessToken || (data as any)?.accessToken;
+                    if (token) {
+                        setCookie('token', token, 7);
                     }
+
+                    setUser({
+                        id: userData.id,
+                        name: userData.name,
+                        email: userData.email,
+                        role: userData.role || 'consumer',
+                    });
+                } else {
+                    router.push('/login');
                 }
-            } catch (err) {
-                console.error("Failed to sync session with better-auth:", err);
-            }
-
-            router.push('/login');
-        };
-
-        syncSession();
+            })
+            .catch(() => router.push('/login'))
+            .finally(() => setLoading(false));
     }, []);
 
     if (loading) {

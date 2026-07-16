@@ -1,9 +1,9 @@
+// src/lib/auth.ts
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { cookies } from "next/headers";
 
 export const auth = betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL,
+    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
     secret: process.env.BETTER_AUTH_SECRET,
     plugins: [nextCookies()],
     session: {
@@ -13,42 +13,69 @@ export const auth = betterAuth({
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            async profile(profile: any) {   // ✅ টাইপ যোগ
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        googleId: profile.id,
-                        email: profile.email,
-                        name: profile.name,
-                        image: profile.picture,
-                        role: "consumer",
-                    }),
+            async profile(profile: any) {
+                console.log("✅ Google profile received:", {
+                    id: profile.id,
+                    email: profile.email,
+                    name: profile.name,
+                    picture: profile.picture,
                 });
-                const data = await res.json();
-                if (!data?.user) return null;
+
+                const googleId = profile.id;   // ✅ better‑auth uses profile.id
+                const payload = {
+                    googleId,
+                    email: profile.email,
+                    name: profile.name,
+                    image: profile.picture,
+                };
+                console.log("📤 Sending to backend:", payload);
 
                 try {
-                    const cookieStore = await cookies();
-                    cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
-                    cookieStore.set("user", JSON.stringify({
-                        id: data.user.id,
-                        _id: data.user.id,
-                        name: data.user.name,
-                        email: data.user.email,
-                        role: data.user.role || "consumer",
-                    }), { path: "/", maxAge: 60 * 60 * 24 * 7 });
-                } catch (cookieErr) {
-                    console.error("Could not set token cookies in google profile callback:", cookieErr);
-                }
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
 
-                return {
-                    id: data.user.id,
-                    email: data.user.email,
-                    name: data.user.name,
-                    role: data.user.role || "consumer",
-                    token: data.token,
-                };
+                    const data = await res.json();
+                    console.log("📥 Backend response:", data);
+
+                    if (!res.ok || !data.user) {
+                        console.error("❌ Backend auth/google failed", data);
+                        return null;
+                    }
+
+                    // কুকিতে token ও user সেট করি
+                    try {
+                        const { cookies } = await import("next/headers");
+                        const cookieStore = await cookies();
+                        cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                        cookieStore.set(
+                            "user",
+                            JSON.stringify({
+                                id: data.user.id,
+                                _id: data.user.id,
+                                name: data.user.name,
+                                email: data.user.email,
+                                role: data.user.role || "consumer",
+                            }),
+                            { path: "/", maxAge: 60 * 60 * 24 * 7 }
+                        );
+                    } catch (cookieErr) {
+                        console.error("❌ Could not set cookies in profile callback:", cookieErr);
+                    }
+
+                    return {
+                        id: data.user.id,
+                        email: data.user.email,
+                        name: data.user.name,
+                        role: data.user.role || "consumer",
+                        token: data.token,
+                    };
+                } catch (fetchError) {
+                    console.error("❌ Fetch to backend failed:", fetchError);
+                    return null;
+                }
             },
         },
     },

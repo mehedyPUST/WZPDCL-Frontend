@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getCookie, removeCookie, setCookie } from '@/lib/cookies';
+import { removeCookie } from '@/lib/cookies';
 import { authClient } from '@/lib/auth-client';
 import {
     Menu, X, User, LogOut, LayoutDashboard, Zap,
@@ -17,67 +17,32 @@ const Navbar = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const syncNavbar = async () => {
-            const token = getCookie('token');
-            if (token) {
-                try {
-                    // JWT decode (payload is the second part)
-                    const payload = JSON.parse(atob(token.split('.')[1]));
+        // সরাসরি better‑auth সেশন থেকে ইউজার তথ্য নেওয়া
+        authClient.getSession()
+            .then(({ data }) => {
+                if (data?.user) {
+                    const userData = data.user as any;
                     setUser({
-                        id: payload.userId || payload.id,
-                        name: payload.name || payload.email,
-                        email: payload.email,
-                        role: payload.role,   // "admin", "xen", "billing" etc.
+                        id: userData.id,
+                        name: userData.name,
+                        email: userData.email,
+                        role: userData.role || 'consumer',
                     });
-                    setLoading(false);
-                    return;
-                } catch (err) {
-                    console.error('Token decode failed', err);
+                } else {
+                    setUser(null);
                 }
-            }
-
-            // Let's check better-auth session
-            try {
-                const { data } = await authClient.getSession();
-                if (data && data.session) {
-                    const sessionToken = (data.session as any).accessToken || (data.session as any).token || (data as any).accessToken;
-                    const userObj = data.user;
-                    if (sessionToken && userObj) {
-                        setCookie('token', sessionToken, 7);
-                        setCookie('user', JSON.stringify({
-                            id: userObj.id,
-                            _id: userObj.id,
-                            name: userObj.name,
-                            email: userObj.email,
-                            role: (userObj as any).role || 'consumer',
-                        }), 7);
-                        setUser({
-                            id: userObj.id,
-                            name: userObj.name,
-                            email: userObj.email,
-                            role: (userObj as any).role || 'consumer',
-                        });
-                        setLoading(false);
-                        return;
-                    }
-                }
-            } catch (err) {
-                console.error("Failed to sync navbar with better-auth:", err);
-            }
-
-            setUser(null);
-            setLoading(false);
-        };
-
-        syncNavbar();
+            })
+            .catch(() => setUser(null))
+            .finally(() => setLoading(false));
     }, [pathname]);
 
     const handleLogout = async () => {
         try {
             await authClient.signOut();
         } catch (e) {
-            console.error("Sign out from better-auth failed:", e);
+            console.error('Sign out failed', e);
         }
+        // পুরনো custom কুকি থাকলে মুছে দাও
         removeCookie('token');
         removeCookie('user');
         setUser(null);
@@ -88,9 +53,9 @@ const Navbar = () => {
         const paths: Record<string, string> = {
             admin: '/dashboard/admin',
             xen: '/dashboard/xen',
-            connection_wing: '/dashboard/connection_wing',
+            connection_wing: '/dashboard/connection',
             complaint_manager: '/dashboard/complaint_manager',
-            billing: '/dashboard/billing',          // ✅ "billing" key
+            billing: '/dashboard/billing',
             consumer: '/dashboard/consumer',
         };
         return paths[role] || '/dashboard/consumer';
@@ -102,7 +67,7 @@ const Navbar = () => {
             xen: 'bg-blue-500',
             connection_wing: 'bg-orange-500',
             complaint_manager: 'bg-red-500',
-            billing: 'bg-teal-500',                 // ✅ "billing" key
+            billing: 'bg-teal-500',
             consumer: 'bg-emerald-500',
         };
         return colors[role] || 'bg-gray-500';
@@ -122,12 +87,14 @@ const Navbar = () => {
                     </button>
 
                     <div className="hidden md:flex items-center space-x-3">
-                        {!loading && !user ? (
+                        {loading ? (
+                            <div className="w-20 h-8 bg-emerald-600/50 rounded-lg animate-pulse" />
+                        ) : !user ? (
                             <>
                                 <Link href="/login" className="px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors">Login</Link>
                                 <Link href="/register" className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors">Register</Link>
                             </>
-                        ) : user ? (
+                        ) : (
                             <div className="flex items-center space-x-3">
                                 <div className={`w-8 h-8 rounded-full ${getRoleColor(user.role)} flex items-center justify-center text-sm font-bold`}>
                                     {user.name?.charAt(0).toUpperCase() || 'U'}
@@ -142,8 +109,6 @@ const Navbar = () => {
                                     <span>Logout</span>
                                 </button>
                             </div>
-                        ) : (
-                            <div className="w-20 h-8 bg-emerald-600/50 rounded-lg animate-pulse" />
                         )}
                     </div>
                 </div>
@@ -169,11 +134,7 @@ const Navbar = () => {
                                 <Link href={getDashboardPath(user.role)} onClick={() => setIsOpen(false)} className="block px-4 py-3 hover:bg-emerald-600 rounded-lg">Dashboard</Link>
                                 <button onClick={() => { handleLogout(); setIsOpen(false); }} className="block w-full text-left px-4 py-3 hover:bg-emerald-600 rounded-lg">Logout</button>
                             </>
-                        ) : (
-                            <div className="px-4 py-3 animate-pulse">
-                                <div className="h-8 bg-emerald-600/50 rounded-lg w-32" />
-                            </div>
-                        )}
+                        ) : null}
                     </div>
                 )}
             </div>
