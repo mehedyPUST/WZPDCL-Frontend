@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
-    Eye, X, CheckCircle, Clock, Wrench, Zap, Filter
+    Eye, X, CheckCircle, Clock, Wrench, Zap, Filter, XCircle
 } from 'lucide-react';
 
 interface Connection {
@@ -83,7 +83,8 @@ export default function ConnectionApplicationsPage() {
         const pending = connections.filter(c => c.status === 'forwarded_to_wing').length;
         const working = connections.filter(c => c.status === 'teamAssigned').length;
         const completed = connections.filter(c => c.status === 'completed' || c.status === 'implemented').length;
-        return { total, pending, working, completed };
+        const awaitingXen = connections.filter(c => c.status === 'pending_payment' || c.status === 'payment_done').length;
+        return { total, pending, working, completed, awaitingXen };
     }, [connections]);
 
     const handleSendTeam = async (id: string) => {
@@ -147,6 +148,18 @@ export default function ConnectionApplicationsPage() {
 
     const getStatusBadge = (status: string) => {
         const map: Record<string, { color: string; label: string; icon: any; tooltip: string }> = {
+            pending_payment: {
+                color: 'bg-orange-100 text-orange-700',
+                label: 'Awaiting XEN Approval',
+                icon: Clock,
+                tooltip: 'Payment pending, waiting for XEN review',
+            },
+            payment_done: {
+                color: 'bg-orange-100 text-orange-700',
+                label: 'Awaiting XEN Approval',
+                icon: Clock,
+                tooltip: 'Payment completed, waiting for XEN review',
+            },
             forwarded_to_wing: {
                 color: 'bg-blue-100 text-blue-700',
                 label: 'Pending',
@@ -170,6 +183,12 @@ export default function ConnectionApplicationsPage() {
                 label: 'Implemented',
                 icon: Zap,
                 tooltip: 'Connection fully implemented',
+            },
+            rejected: {
+                color: 'bg-red-100 text-red-700',
+                label: 'Rejected',
+                icon: XCircle,
+                tooltip: 'Application rejected by XEN',
             },
         };
         return map[status] || {
@@ -210,8 +229,9 @@ export default function ConnectionApplicationsPage() {
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard icon={<Zap size={24} />} label="Total" value={stats.total} color="bg-blue-100 text-blue-600" />
+                <StatCard icon={<Clock size={24} />} label="Awaiting XEN" value={stats.awaitingXen} color="bg-orange-100 text-orange-600" />
                 <StatCard icon={<Clock size={24} />} label="Pending" value={stats.pending} color="bg-yellow-100 text-yellow-600" />
                 <StatCard icon={<Wrench size={24} />} label="In Progress" value={stats.working} color="bg-indigo-100 text-indigo-600" />
                 <StatCard icon={<CheckCircle size={24} />} label="Completed" value={stats.completed} color="bg-green-100 text-green-600" />
@@ -238,10 +258,13 @@ export default function ConnectionApplicationsPage() {
                             className="pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-sm focus:ring-2 focus:ring-emerald-500"
                         >
                             <option value="all">All Status</option>
+                            <option value="pending_payment">Awaiting XEN</option>
+                            <option value="payment_done">Payment Done</option>
                             <option value="forwarded_to_wing">Pending</option>
                             <option value="teamAssigned">In Progress</option>
                             <option value="completed">Completed</option>
                             <option value="implemented">Implemented</option>
+                            <option value="rejected">Rejected</option>
                         </select>
                     </div>
                     <button onClick={() => { setSearchTerm(''); setFilterStatus('all'); }} className="px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center gap-2">
@@ -278,6 +301,13 @@ export default function ConnectionApplicationsPage() {
                                 paginatedConnections.map((conn, idx) => {
                                     const badge = getStatusBadge(conn.status);
                                     const StatusIcon = badge.icon;
+
+                                    // কোন status-এ কী অ্যাকশন বাটন দেখাবে
+                                    const isPending = conn.status === 'forwarded_to_wing';
+                                    const isWorking = conn.status === 'teamAssigned';
+                                    const isCompleted = conn.status === 'completed' || conn.status === 'implemented';
+                                    const isAwaitingXen = conn.status === 'pending_payment' || conn.status === 'payment_done';
+
                                     return (
                                         <tr key={conn._id} className={`hover:bg-emerald-50/50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                                             <td className="px-6 py-4 font-mono text-gray-700">{conn.applicationId}</td>
@@ -302,8 +332,8 @@ export default function ConnectionApplicationsPage() {
                                                         <Eye size={18} />
                                                     </button>
 
-                                                    {/* ✅ শুধু দরকারি status-এ বাটন */}
-                                                    {conn.status === 'forwarded_to_wing' && (
+                                                    {/* XEN approved → functional Send Team */}
+                                                    {isPending && (
                                                         <button
                                                             onClick={() => handleSendTeam(conn._id)}
                                                             disabled={actionLoading}
@@ -313,7 +343,8 @@ export default function ConnectionApplicationsPage() {
                                                         </button>
                                                     )}
 
-                                                    {conn.status === 'teamAssigned' && (
+                                                    {/* Team working → Complete & Assign Meter */}
+                                                    {isWorking && (
                                                         <button
                                                             onClick={() => openAddMeter(conn)}
                                                             className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors"
@@ -322,8 +353,19 @@ export default function ConnectionApplicationsPage() {
                                                         </button>
                                                     )}
 
-                                                    {/* Completed/Implemented-এ meter থাকলে ছোট ইঙ্গিত */}
-                                                    {(conn.status === 'completed' || conn.status === 'implemented') && conn.meterAssigned && (
+                                                    {/* Awaiting XEN → disabled button with tooltip */}
+                                                    {isAwaitingXen && (
+                                                        <button
+                                                            disabled
+                                                            className="px-3 py-1.5 bg-gray-300 text-gray-500 text-xs rounded-lg cursor-not-allowed"
+                                                            title="Awaiting XEN Approval"
+                                                        >
+                                                            Send Team
+                                                        </button>
+                                                    )}
+
+                                                    {/* Completed → meter info only */}
+                                                    {isCompleted && conn.meterAssigned && (
                                                         <span className="text-xs text-green-600 font-medium">Meter: {conn.meterAssigned}</span>
                                                     )}
                                                 </div>
