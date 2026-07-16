@@ -11,10 +11,10 @@ export default function PaymentSuccessPage() {
 
     useEffect(() => {
         const type = searchParams.get('type');
-        const id = searchParams.get('id'); // billId
+        const id = searchParams.get('id');
 
         if (type === 'bill' && id) {
-            // বিল পেমেন্ট কনফার্ম করতে API কল
+            // Immediately confirm payment with backend
             fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/confirm-bill-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -27,7 +27,7 @@ export default function PaymentSuccessPage() {
                 })
                 .catch(() => setStatus('error'));
         } else {
-            setStatus('success'); // type=bill না হলে (connection payment) webhook ধরে নিচ্ছি
+            setStatus('success');
         }
     }, [searchParams]);
 
