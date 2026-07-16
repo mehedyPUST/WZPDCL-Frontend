@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
+import { cookies } from "next/headers";
 
 export const auth = betterAuth({
     baseURL: process.env.BETTER_AUTH_URL,
@@ -26,6 +27,21 @@ export const auth = betterAuth({
                 });
                 const data = await res.json();
                 if (!data?.user) return null;
+
+                try {
+                    const cookieStore = await cookies();
+                    cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                    cookieStore.set("user", JSON.stringify({
+                        id: data.user.id,
+                        _id: data.user.id,
+                        name: data.user.name,
+                        email: data.user.email,
+                        role: data.user.role || "consumer",
+                    }), { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                } catch (cookieErr) {
+                    console.error("Could not set token cookies in google profile callback:", cookieErr);
+                }
+
                 return {
                     id: data.user.id,
                     email: data.user.email,
