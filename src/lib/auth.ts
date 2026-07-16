@@ -1,81 +1,49 @@
-// src/lib/auth.ts
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 
 export const auth = betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL,
-    secret: process.env.BETTER_AUTH_SECRET,
+    baseURL: process.env.NEXT_PUBLIC_APP_URL,
+    secret: process.env.BETTER_AUTH_SECRET || "local-secret",
     plugins: [nextCookies()],
-    session: {
-        strategy: "jwt",
-    },
+    session: { strategy: "jwt" },
     socialProviders: {
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
             async profile(profile: any) {
-                console.log("✅ Google profile received:", {
-                    id: profile.id,
-                    email: profile.email,
-                    name: profile.name,
-                    picture: profile.picture,
-                });
-
-                const googleId = profile.id;   // ✅ better‑auth uses profile.id
-                const payload = {
-                    googleId,
+                // Google প্রোফাইল – id, email, name, picture
+                return {
+                    id: profile.id,           // ✅ real Google ID
                     email: profile.email,
                     name: profile.name,
                     image: profile.picture,
                 };
-                console.log("📤 Sending to backend:", payload);
-
-                try {
+            },
+        },
+    },
+    databaseHooks: {
+        user: {
+            create: {
+                before: async (user) => {
+                    console.log("🔧 databaseHooks triggered for user:", user.email);
                     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
+                        body: JSON.stringify({
+                            googleId: user.id,    // ✅ Google ID
+                            email: user.email,
+                            name: user.name,
+                            image: (user as any).image || "",
+                        }),
                     });
-
                     const data = await res.json();
-                    console.log("📥 Backend response:", data);
-
-                    if (!res.ok || !data.user) {
-                        console.error("❌ Backend auth/google failed", data);
-                        return null;
+                    console.log("📥 Backend response in hook:", data);
+                    if (data?.user) {
+                        (user as any).role = data.user.role || "consumer";
+                        (user as any).token = data.token;
                     }
-
-                    // কুকিতে token ও user সেট করি
-                    try {
-                        const { cookies } = await import("next/headers");
-                        const cookieStore = await cookies();
-                        cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
-                        cookieStore.set(
-                            "user",
-                            JSON.stringify({
-                                id: data.user.id,
-                                _id: data.user.id,
-                                name: data.user.name,
-                                email: data.user.email,
-                                role: data.user.role || "consumer",
-                            }),
-                            { path: "/", maxAge: 60 * 60 * 24 * 7 }
-                        );
-                    } catch (cookieErr) {
-                        console.error("❌ Could not set cookies in profile callback:", cookieErr);
-                    }
-
-                    return {
-                        id: data.user.id,
-                        email: data.user.email,
-                        name: data.user.name,
-                        role: data.user.role || "consumer",
-                        token: data.token,
-                    };
-                } catch (fetchError) {
-                    console.error("❌ Fetch to backend failed:", fetchError);
-                    return null;
-                }
+                    return user;
+                },
             },
         },
     },
@@ -121,7 +89,4 @@ export const auth = betterAuth({
     },
 } as any);
 
-export const handlers = {
-    GET: auth.handler,
-    POST: auth.handler,
-};
+export const handlers = { GET: auth.handler, POST: auth.handler };
