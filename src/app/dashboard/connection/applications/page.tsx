@@ -1,4 +1,3 @@
-// src/app/dashboard/connection/applications/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -177,7 +176,7 @@ export default function ConnectionApplicationsPage() {
             color: 'bg-gray-100 text-gray-700',
             label: status,
             icon: Clock,
-            tooltip: 'Status: ' + status,
+            tooltip: 'Unknown status',
         };
     };
 
@@ -303,8 +302,8 @@ export default function ConnectionApplicationsPage() {
                                                         <Eye size={18} />
                                                     </button>
 
-                                                    {/* ✅ Send Team button logic */}
-                                                    {conn.status === 'forwarded_to_wing' ? (
+                                                    {/* ✅ শুধু দরকারি status-এ বাটন */}
+                                                    {conn.status === 'forwarded_to_wing' && (
                                                         <button
                                                             onClick={() => handleSendTeam(conn._id)}
                                                             disabled={actionLoading}
@@ -312,23 +311,18 @@ export default function ConnectionApplicationsPage() {
                                                         >
                                                             Send Team
                                                         </button>
-                                                    ) : conn.status === 'teamAssigned' ? (
+                                                    )}
+
+                                                    {conn.status === 'teamAssigned' && (
                                                         <button
                                                             onClick={() => openAddMeter(conn)}
                                                             className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors"
                                                         >
                                                             Complete & Assign Meter
                                                         </button>
-                                                    ) : (
-                                                        <button
-                                                            disabled
-                                                            className="px-3 py-1.5 bg-gray-300 text-gray-500 text-xs rounded-lg cursor-not-allowed"
-                                                            title="Awaiting XEN Approval"
-                                                        >
-                                                            Send Team
-                                                        </button>
                                                     )}
 
+                                                    {/* Completed/Implemented-এ meter থাকলে ছোট ইঙ্গিত */}
                                                     {(conn.status === 'completed' || conn.status === 'implemented') && conn.meterAssigned && (
                                                         <span className="text-xs text-green-600 font-medium">Meter: {conn.meterAssigned}</span>
                                                     )}

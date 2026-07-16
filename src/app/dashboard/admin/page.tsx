@@ -196,64 +196,66 @@ export default function AdminDashboard() {
 
             {/* Users Table */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-gradient-to-r from-gray-50 to-white border-b">
-                        <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
-                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {filteredUsers.length === 0 ? (
-                            <tr><td colSpan={4} className="px-6 py-20 text-center text-gray-400">No users found</td></tr>
-                        ) : (
-                            filteredUsers.map((user, idx) => {
-                                const isCurrentAdmin = adminId && user._id === adminId;
-                                return (
-                                    <tr key={user._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                    <span className="text-sm font-semibold text-emerald-700">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gradient-to-r from-gray-50 to-white border-b">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {filteredUsers.length === 0 ? (
+                                <tr><td colSpan={4} className="px-6 py-20 text-center text-gray-400">No users found</td></tr>
+                            ) : (
+                                filteredUsers.map((user, idx) => {
+                                    const isCurrentAdmin = adminId && user._id === adminId;
+                                    return (
+                                        <tr key={user._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                        <span className="text-sm font-semibold text-emerald-700">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium">{user.name}</p>
+                                                        <p className="text-xs text-gray-400">{user.email}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium">{user.name}</p>
-                                                    <p className="text-xs text-gray-400">{user.email}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getRoleColor(user.role)}`}>{user.role}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('en-BD', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex justify-center gap-2">
+                                                    {isCurrentAdmin ? (
+                                                        <span className="text-xs text-gray-400 italic px-2">You</span>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => { setSelectedUser(user); setEditRole(user.role); setShowEditModal(true); }}
+                                                                className="p-2 rounded-lg hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors"
+                                                                title="Edit role"
+                                                            ><Edit size={16} /></button>
+                                                            <button
+                                                                onClick={() => handleDeleteUser(user._id)}
+                                                                className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
+                                                                title="Delete user"
+                                                            ><Trash2 size={16} /></button>
+                                                        </>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getRoleColor(user.role)}`}>{user.role}</span>
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('en-BD', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex justify-center gap-2">
-                                                {isCurrentAdmin ? (
-                                                    <span className="text-xs text-gray-400 italic px-2">You</span>
-                                                ) : (
-                                                    <>
-                                                        <button
-                                                            onClick={() => { setSelectedUser(user); setEditRole(user.role); setShowEditModal(true); }}
-                                                            className="p-2 rounded-lg hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors"
-                                                            title="Edit role"
-                                                        ><Edit size={16} /></button>
-                                                        <button
-                                                            onClick={() => handleDeleteUser(user._id)}
-                                                            className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
-                                                            title="Delete user"
-                                                        ><Trash2 size={16} /></button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Edit Role Modal */}
