@@ -243,59 +243,61 @@ export default function GenerateBillsPage() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                        <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Meter #</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Consumer</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Last Reading</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {paginatedMeters.length === 0 ? (
-                            <tr><td colSpan={6} className="px-6 py-20 text-center text-gray-400">
-                                <div className="flex flex-col items-center gap-2">
-                                    <Package size={32} className="opacity-30" />
-                                    <p>No meters found</p>
-                                    <p className="text-xs">Add meters from Connection Wing → Meters Management</p>
-                                </div>
-                            </td></tr>
-                        ) : (
-                            paginatedMeters.map((meter, idx) => {
-                                const alreadyGenerated = generatedMeterSet.has(meter.meterNumber);
-                                return (
-                                    <tr key={meter._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                                        <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}</td>
-                                        <td className="px-6 py-4">{meter.consumerInfo?.name || <span className="text-gray-400">Unregistered</span>}</td>
-                                        <td className="px-6 py-4 capitalize">{meter.consumerType || 'residential'}</td>
-                                        <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                                {meter.claimedBy ? 'Assigned' : 'Unassigned'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            {alreadyGenerated ? (
-                                                <span className="text-xs text-green-600 font-medium flex items-center justify-center gap-1">
-                                                    <CheckCircle size={14} /> Bill Generated
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Meter #</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Consumer</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Type</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Last Reading</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {paginatedMeters.length === 0 ? (
+                                <tr><td colSpan={6} className="px-6 py-20 text-center text-gray-400">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Package size={32} className="opacity-30" />
+                                        <p>No meters found</p>
+                                        <p className="text-xs">Add meters from Connection Wing → Meters Management</p>
+                                    </div>
+                                </td></tr>
+                            ) : (
+                                paginatedMeters.map((meter, idx) => {
+                                    const alreadyGenerated = generatedMeterSet.has(meter.meterNumber);
+                                    return (
+                                        <tr key={meter._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                            <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}</td>
+                                            <td className="px-6 py-4">{meter.consumerInfo?.name || <span className="text-gray-400">Unregistered</span>}</td>
+                                            <td className="px-6 py-4 capitalize">{meter.consumerType || 'residential'}</td>
+                                            <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                                    }`}>
+                                                    {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                                    {meter.claimedBy ? 'Assigned' : 'Unassigned'}
                                                 </span>
-                                            ) : (
-                                                <button onClick={() => openModal(meter)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 flex items-center gap-1 mx-auto">
-                                                    <Calculator size={14} /> Generate Bill
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {alreadyGenerated ? (
+                                                    <span className="text-xs text-green-600 font-medium flex items-center justify-center gap-1">
+                                                        <CheckCircle size={14} /> Bill Generated
+                                                    </span>
+                                                ) : (
+                                                    <button onClick={() => openModal(meter)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 flex items-center gap-1 mx-auto">
+                                                        <Calculator size={14} /> Generate Bill
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
                 {totalPages > 1 && (
                     <div className="px-6 py-4 border-t flex items-center justify-between text-sm">
                         <span>Page {currentPage} of {totalPages} ({filteredMeters.length} meters)</span>
