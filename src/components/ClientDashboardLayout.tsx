@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getCookie, setCookie } from '@/lib/cookies';
+import { Menu } from 'lucide-react';
 
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         const token = getCookie('token');
@@ -45,7 +47,7 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
                 <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
             </div>
         );
@@ -54,9 +56,32 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     if (!user) return null;
 
     return (
-        <div className="flex min-h-screen">
-            <Sidebar role={user.role} />
-            <main className="flex-1 p-6 bg-emerald-50 overflow-y-auto">{children}</main>
+        <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
+            <Sidebar
+                role={user.role}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+
+            <div className="flex-1 flex flex-col">
+                {/* Mobile Top Sub-Header */}
+                <div className="md:hidden bg-white border-b border-emerald-100 px-4 py-3 flex items-center justify-between sticky top-16 z-30">
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-2 -ml-2 rounded-lg text-emerald-800 hover:bg-emerald-50 transition-colors"
+                    >
+                        <Menu size={24} />
+                    </button>
+                    <span className="font-semibold text-emerald-800 capitalize">
+                        {user.role.replace('_', ' ')} Portal
+                    </span>
+                    <div className="w-8" /> {/* Balance spacer */}
+                </div>
+
+                <main className="flex-1 p-4 sm:p-6 bg-emerald-50 overflow-y-auto">
+                    {children}
+                </main>
+            </div>
         </div>
     );
 }
