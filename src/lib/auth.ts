@@ -18,11 +18,7 @@ const dbPromise = getDb();
 export const auth = betterAuth({
     database: mongodbAdapter(
         await dbPromise,
-        {
-            client: client!,
-            // ✅ collection name কাস্টমাইজ করছি যাতে আমাদের "users" collection ব্যবহার হয়
-            collectionName: "users",
-        }
+        { client: client! }
     ),
     baseURL: process.env.NEXT_PUBLIC_APP_URL,
     secret: process.env.BETTER_AUTH_SECRET || "local-secret",
@@ -32,41 +28,6 @@ export const auth = betterAuth({
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-        },
-    },
-    databaseHooks: {
-        user: {
-            signIn: {
-                after: async (session, user) => {
-                    console.log("🔧 signIn.after triggered for:", user.email);
-                    try {
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                googleId: user.id,
-                                email: user.email,
-                                name: user.name,
-                                image: (user as any).image || "",
-                            }),
-                        });
-                        const data = await res.json();
-                        console.log("📥 Backend response in signIn hook:", data);
-                        if (data?.token) {
-                            const { cookies } = await import("next/headers");
-                            const cookieStore = await cookies();
-                            cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
-                            cookieStore.set("user", JSON.stringify({
-                                id: data.user.id, name: data.user.name,
-                                email: data.user.email, role: data.user.role,
-                            }), { path: "/", maxAge: 60 * 60 * 24 * 7 });
-                            console.log("✅ Cookies updated from signIn hook");
-                        }
-                    } catch (err) {
-                        console.error("❌ Backend call failed in signIn hook:", err);
-                    }
-                },
-            },
         },
     },
     providers: [
