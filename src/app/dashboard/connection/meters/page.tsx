@@ -298,55 +298,57 @@ export default function ConnectionMetersPage() {
 
             {/* Meters Table */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b">
-                        <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Meter #</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Consumer</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Last Reading</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                            <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {paginatedMeters.length === 0 ? (
-                            <tr><td colSpan={5} className="px-6 py-20 text-center text-gray-400">No meters found</td></tr>
-                        ) : (
-                            paginatedMeters.map((meter) => (
-                                <tr key={meter._id} className="hover:bg-emerald-50/50">
-                                    <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}
-                                        {meter.status === 'inactive' && <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Inactive</span>}
-                                    </td>
-                                    <td className="px-6 py-4">{meter.consumerInfo?.name || '-'}</td>
-                                    <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                            {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
-                                            {meter.claimedBy ? 'Claimed' : 'Unclaimed'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex justify-center gap-2">
-                                            <button onClick={() => openDetail(meter)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600" title="View Details">
-                                                <Eye size={18} />
-                                            </button>
-                                            {meter.status !== 'inactive' && (
-                                                <button onClick={() => openReplace(meter)} className="p-2 rounded-lg hover:bg-indigo-100 text-gray-500 hover:text-indigo-600" title="Replace Meter">
-                                                    <Replace size={18} />
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Meter #</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Consumer</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Last Reading</th>
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {paginatedMeters.length === 0 ? (
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-gray-400">No meters found</td></tr>
+                            ) : (
+                                paginatedMeters.map((meter) => (
+                                    <tr key={meter._id} className="hover:bg-emerald-50/50">
+                                        <td className="px-6 py-4 font-mono font-medium">{meter.meterNumber}
+                                            {meter.status === 'inactive' && <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded-full">Inactive</span>}
+                                        </td>
+                                        <td className="px-6 py-4">{meter.consumerInfo?.name || '-'}</td>
+                                        <td className="px-6 py-4">{meter.lastReading !== undefined ? `${meter.lastReading} kWh` : '-'}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${meter.claimedBy ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                {meter.claimedBy ? <CheckCircle size={14} /> : <Clock size={14} />}
+                                                {meter.claimedBy ? 'Claimed' : 'Unclaimed'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex justify-center gap-2">
+                                                <button onClick={() => openDetail(meter)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600" title="View Details">
+                                                    <Eye size={18} />
                                                 </button>
-                                            )}
-                                            {meter.status === 'inactive' && (
-                                                <button onClick={() => handleRemoveInactive(meter._id)} disabled={removeLoading === meter._id} className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600" title="Delete Permanently">
-                                                    {removeLoading === meter._id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} />}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                                {meter.status !== 'inactive' && (
+                                                    <button onClick={() => openReplace(meter)} className="p-2 rounded-lg hover:bg-indigo-100 text-gray-500 hover:text-indigo-600" title="Replace Meter">
+                                                        <Replace size={18} />
+                                                    </button>
+                                                )}
+                                                {meter.status === 'inactive' && (
+                                                    <button onClick={() => handleRemoveInactive(meter._id)} disabled={removeLoading === meter._id} className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600" title="Delete Permanently">
+                                                        {removeLoading === meter._id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={18} />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
                 {totalPages > 1 && (
                     <div className="px-6 py-4 border-t flex justify-between text-sm">
                         <span>Page {currentPage} of {totalPages}</span>
