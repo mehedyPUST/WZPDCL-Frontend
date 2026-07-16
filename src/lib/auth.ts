@@ -1,25 +1,7 @@
 import { betterAuth } from "better-auth";
-import { MongoClient } from "mongodb";
-import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { nextCookies } from "better-auth/next-js";
 
-let client: MongoClient;
-async function getDb() {
-    if (!client) {
-        client = new MongoClient(process.env.MONGODB_URI!);
-        await client.connect();
-        console.log('✅ MongoDB connected for auth adapter');
-    }
-    return client.db(process.env.DB_NAME || 'WZPDCL-DB');
-}
-
-const dbPromise = getDb();
-
 export const auth = betterAuth({
-    database: mongodbAdapter(
-        await dbPromise,
-        { client: client! }
-    ),
     baseURL: process.env.NEXT_PUBLIC_APP_URL,
     secret: process.env.BETTER_AUTH_SECRET || "local-secret",
     plugins: [nextCookies()],
@@ -28,11 +10,7 @@ export const auth = betterAuth({
         google: {
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            // ✅ profile callback – Google login এ call হবে
             async profile(profile: any) {
-                console.log("✅ Google profile received:", profile.email);
-
-                // Backend-এ ইউজার তৈরি/লগইন করাই
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -43,35 +21,29 @@ export const auth = betterAuth({
                         image: profile.picture,
                     }),
                 });
-
                 const data = await res.json();
-                console.log("📥 Backend response:", data);
+                if (!data?.user) return null;
 
-                if (!data?.user) {
-                    console.error("❌ Backend returned no user");
-                    return null;
-                }
-
-                // কুকিতে token ও user সেট করি
+                // ✅ Google লগইনের সময় কুকিতে token ও user সেট
                 try {
                     const { cookies } = await import("next/headers");
                     const cookieStore = await cookies();
-                    cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                    cookieStore.set("token", data.token, { path: "/", maxAge: 60 * 60 * 24 * 7, httpOnly: false });
                     cookieStore.set("user", JSON.stringify({
                         id: data.user.id,
                         name: data.user.name,
                         email: data.user.email,
                         role: data.user.role,
-                    }), { path: "/", maxAge: 60 * 60 * 24 * 7 });
+                    }), { path: "/", maxAge: 60 * 60 * 24 * 7, httpOnly: false });
                 } catch (e) {
-                    console.error("❌ Failed to set cookies:", e);
+                    console.error("Cookie set failed in profile:", e);
                 }
 
                 return {
                     id: data.user.id,
                     email: data.user.email,
                     name: data.user.name,
-                    role: data.user.role,      // ✅ "consumer" for new users
+                    role: data.user.role,
                     token: data.token,
                 };
             },

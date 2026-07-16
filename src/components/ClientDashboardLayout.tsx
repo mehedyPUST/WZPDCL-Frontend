@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { setCookie, getCookie } from '@/lib/cookies';
-import { authClient } from '@/lib/auth-client';
+import { getCookie, setCookie } from '@/lib/cookies';
 
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -12,81 +11,35 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // আগের token থাকলে আগে দেখাই
-        const existingToken = getCookie('token');
-        const existingUser = getCookie('user');
+        const token = getCookie('token');
+        const userStr = getCookie('user');
 
-        if (existingToken && existingUser) {
-            try {
-                setUser(JSON.parse(existingUser));
-                setLoading(false);
-                return;
-            } catch { }
+        if (!token || !userStr) {
+            router.push('/login');
+            return;
         }
 
-        // better‑auth সেশন থেকে token বের করি
-        authClient.getSession()
-            .then(async ({ data }) => {
-                if (!data?.user) {
-                    router.push('/login');
-                    return;
+        let parsedUser: any;
+        try {
+            parsedUser = JSON.parse(userStr);
+        } catch {
+            router.push('/login');
+            return;
+        }
+
+        // ✅ backend থেকে fresh role আনি
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(freshUser => {
+                if (freshUser?.role) {
+                    parsedUser.role = freshUser.role;
+                    setCookie('user', JSON.stringify(parsedUser), 7);
                 }
-
-                const userData = data.user as any;
-
-                // ✅ JWT token পেতে আমাদের backend-এ কল করি
-                let token = (data.session as any)?.accessToken || (data as any)?.accessToken;
-
-                if (!token) {
-                    // token না থাকলে login API কল করে token নেই
-                    try {
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                email: userData.email,
-                                // Google user হলে password দরকার নেই – backend google auth route use করব
-                            }),
-                        });
-                        // যদি email/password user না হয়ে google user হয়, we'll use google auth route
-                        if (!res.ok) {
-                            const googleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/google`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    googleId: userData.id, // better‑auth id (Google's id)
-                                    email: userData.email,
-                                    name: userData.name,
-                                    image: (userData as any).image || '',
-                                }),
-                            });
-                            const googleData = await googleRes.json();
-                            token = googleData.token;
-                        } else {
-                            const loginData = await res.json();
-                            token = loginData.token;
-                        }
-                    } catch (err) {
-                        console.error('Failed to get token:', err);
-                    }
-                }
-
-                if (token) {
-                    setCookie('token', token, 7);
-                    console.log('✅ Token cookie set');
-                }
-
-                const finalUser = {
-                    id: userData.id,
-                    name: userData.name,
-                    email: userData.email,
-                    role: userData.role || 'consumer',
-                };
-
-                setCookie('user', JSON.stringify(finalUser), 7);
-                setUser(finalUser);
+                setUser(parsedUser);
             })
-            .catch(() => router.push('/login'))
+            .catch(() => setUser(parsedUser))
             .finally(() => setLoading(false));
     }, []);
 
