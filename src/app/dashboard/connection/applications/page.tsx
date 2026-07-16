@@ -1,3 +1,4 @@
+// src/app/dashboard/connection/applications/page.tsx
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -6,8 +7,6 @@ import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
     Eye, X, CheckCircle, Clock, Wrench, Zap, Filter
 } from 'lucide-react';
-
-// ... বাকি কোড অপরিবর্তিত, শুধু ওপরে React ইম্পোর্ট আছে
 
 interface Connection {
     _id: string;
@@ -148,13 +147,38 @@ export default function ConnectionApplicationsPage() {
     };
 
     const getStatusBadge = (status: string) => {
-        const map: Record<string, { color: string; label: string; icon: any }> = {
-            forwarded_to_wing: { color: 'bg-blue-100 text-blue-700', label: 'Pending', icon: Clock },
-            teamAssigned: { color: 'bg-indigo-100 text-indigo-700', label: 'Team Working', icon: Wrench },
-            completed: { color: 'bg-green-100 text-green-700', label: 'Completed', icon: CheckCircle },
-            implemented: { color: 'bg-teal-100 text-teal-700', label: 'Implemented', icon: Zap },
+        const map: Record<string, { color: string; label: string; icon: any; tooltip: string }> = {
+            forwarded_to_wing: {
+                color: 'bg-blue-100 text-blue-700',
+                label: 'Pending',
+                icon: Clock,
+                tooltip: 'Approved by XEN – awaiting Connection Wing action',
+            },
+            teamAssigned: {
+                color: 'bg-indigo-100 text-indigo-700',
+                label: 'Team Working',
+                icon: Wrench,
+                tooltip: 'Installation team has been dispatched',
+            },
+            completed: {
+                color: 'bg-green-100 text-green-700',
+                label: 'Completed',
+                icon: CheckCircle,
+                tooltip: 'Meter assigned and connection completed',
+            },
+            implemented: {
+                color: 'bg-teal-100 text-teal-700',
+                label: 'Implemented',
+                icon: Zap,
+                tooltip: 'Connection fully implemented',
+            },
         };
-        return map[status] || { color: 'bg-gray-100 text-gray-700', label: status, icon: Clock };
+        return map[status] || {
+            color: 'bg-gray-100 text-gray-700',
+            label: status,
+            icon: Clock,
+            tooltip: 'Status: ' + status,
+        };
     };
 
     if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-emerald-600" size={48} /></div>;
@@ -265,7 +289,10 @@ export default function ConnectionApplicationsPage() {
                                             <td className="px-6 py-4 capitalize text-gray-600">{conn.connectionType}</td>
                                             <td className="px-6 py-4 font-medium text-gray-700">{conn.loadRequired} kW</td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
+                                                <span
+                                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${badge.color}`}
+                                                    title={badge.tooltip}
+                                                >
                                                     <StatusIcon size={14} />
                                                     {badge.label}
                                                 </span>
@@ -275,16 +302,33 @@ export default function ConnectionApplicationsPage() {
                                                     <button onClick={() => openDetail(conn)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-emerald-600 transition-colors" title="View Details">
                                                         <Eye size={18} />
                                                     </button>
-                                                    {conn.status === 'forwarded_to_wing' && (
-                                                        <button onClick={() => handleSendTeam(conn._id)} disabled={actionLoading} className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors">
+
+                                                    {/* ✅ Send Team button logic */}
+                                                    {conn.status === 'forwarded_to_wing' ? (
+                                                        <button
+                                                            onClick={() => handleSendTeam(conn._id)}
+                                                            disabled={actionLoading}
+                                                            className="px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors"
+                                                        >
+                                                            Send Team
+                                                        </button>
+                                                    ) : conn.status === 'teamAssigned' ? (
+                                                        <button
+                                                            onClick={() => openAddMeter(conn)}
+                                                            className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors"
+                                                        >
+                                                            Complete & Assign Meter
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            disabled
+                                                            className="px-3 py-1.5 bg-gray-300 text-gray-500 text-xs rounded-lg cursor-not-allowed"
+                                                            title="Awaiting XEN Approval"
+                                                        >
                                                             Send Team
                                                         </button>
                                                     )}
-                                                    {conn.status === 'teamAssigned' && (
-                                                        <button onClick={() => openAddMeter(conn)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs rounded-lg hover:bg-emerald-700 transition-colors">
-                                                            Complete & Assign Meter
-                                                        </button>
-                                                    )}
+
                                                     {(conn.status === 'completed' || conn.status === 'implemented') && conn.meterAssigned && (
                                                         <span className="text-xs text-green-600 font-medium">Meter: {conn.meterAssigned}</span>
                                                     )}
