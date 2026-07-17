@@ -11,6 +11,7 @@ import {
 import { getCookie } from '@/lib/cookies';
 import Modal from '@/components/ui/Modal';
 import ClaimMeterModal from '@/components/ClaimMeterModal';
+import { apiFetch } from '@/lib/api-client';
 
 interface Complaint {
     _id: string;
@@ -69,30 +70,22 @@ export default function ConsumerMyComplaintsPage() {
 
     // ---------- fetch data ----------
     const fetchData = async () => {
-        const token = getCookie('token');
-        if (!token) { setError('Not authenticated'); setLoading(false); return; }
-
+        setLoading(true);
+        setError(null);
         try {
             // fetch claimed meters
-            const meterRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/my`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const meterData = await meterRes.json();
+            const meterData = await apiFetch<Meter[]>('/meters/my');
             const metersList: Meter[] = Array.isArray(meterData) ? meterData : [];
             setClaimedMeters(metersList);
 
             // if no meters → stop
             if (metersList.length === 0) {
                 setComplaints([]);
-                setLoading(false);
                 return;
             }
 
             // fetch complaints for the logged‑in user
-            const compRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/complaints/my`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const compData = await compRes.json();
+            const compData = await apiFetch<Complaint[]>('/complaints/my');
             setComplaints(Array.isArray(compData) ? compData : []);
         } catch (err: any) {
             setError(err.message);
@@ -155,17 +148,12 @@ export default function ConsumerMyComplaintsPage() {
         }
         setIsSubmitting(true);
         setFormError(null);
-        const token = getCookie('token');
-        if (!token) { setFormError('Not authenticated'); setIsSubmitting(false); return; }
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/complaints/register`, {
+            await apiFetch('/complaints/register', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ meterNumber: newMeterNumber, description: newDescription }),
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Failed to submit complaint');
 
             setNewDescription('');
             setShowNewModal(false);
@@ -179,25 +167,17 @@ export default function ConsumerMyComplaintsPage() {
 
     const handleReviewSubmit = async (e: React.FormEvent, complaintId: string) => {
         e.preventDefault();
-        const token = getCookie('token');
-        if (!token) { setReviewError('Not authenticated'); return; }
         setSubmittingReview(true);
         setReviewError(null);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/submit`, {
+            await apiFetch('/reviews/submit', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
                 body: JSON.stringify({
                     complaintId,
                     rating,
                     text: reviewText
                 })
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Failed to submit review');
 
             localStorage.setItem(`wzpdcl_rated_${complaintId}`, 'true');
             setRatedComplaints(prev => ({ ...prev, [complaintId]: true }));
@@ -374,7 +354,13 @@ export default function ConsumerMyComplaintsPage() {
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <button
-                                                    onClick={() => { setSelectedComplaint(complaint); setShowDetailModal(true); }}
+                                                    onClick={() => {
+                                                        setSelectedComplaint(complaint);
+                                                        setRating(5);
+                                                        setReviewText('');
+                                                        setReviewError(null);
+                                                        setShowDetailModal(true);
+                                                    }}
                                                     className="p-1.5 hover:bg-gray-100 rounded-lg"
                                                     title="View Details"
                                                 >
