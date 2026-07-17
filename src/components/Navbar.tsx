@@ -59,6 +59,11 @@ export default function Navbar() {
     // ✅ Contact দেখাবে যদি logged-out অথবা consumer
     const showContact = !user || user.role === 'consumer';
 
+    // ✅ ড্যাশবোর্ড পেজগুলোতে navbar লুকিয়ে ফেলব
+    if (pathname.startsWith('/dashboard')) {
+        return null;
+    }
+
     return (
         <nav className="bg-emerald-700 text-white shadow-lg sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4">
