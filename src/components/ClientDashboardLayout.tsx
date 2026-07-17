@@ -1,13 +1,25 @@
+// src/components/ClientDashboardLayout.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getCookie, setCookie } from '@/lib/cookies';
 import { Menu } from 'lucide-react';
 
+// কোন base path কোন role-এর জন্য
+const rolePathMap: Record<string, string> = {
+    '/dashboard/admin': 'admin',
+    '/dashboard/xen': 'xen',
+    '/dashboard/connection': 'connection',
+    '/dashboard/billing': 'billing',
+    '/dashboard/complaint_manager': 'complaint',
+    '/dashboard/consumer': 'consumer',
+};
+
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -29,7 +41,7 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
             return;
         }
 
-        // ✅ backend থেকে fresh role আনি
+        // backend থেকে fresh role আনি
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
         })
@@ -39,11 +51,33 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
                     parsedUser.role = freshUser.role;
                     setCookie('user', JSON.stringify(parsedUser), 7);
                 }
+
+                // Role check: current path allowed for this role?
+                const basePath = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
+                const requiredRole = rolePathMap[basePath];
+                const isDashboardHome = Object.keys(rolePathMap).includes(basePath);
+
+                if (isDashboardHome && requiredRole && parsedUser.role !== requiredRole) {
+                    router.replace('/access-denied');
+                    return;
+                }
+
                 setUser(parsedUser);
             })
-            .catch(() => setUser(parsedUser))
+            .catch(() => {
+                // API fail – পুরনো role দিয়েও block করি প্রয়োজনে
+                const basePath = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
+                const requiredRole = rolePathMap[basePath];
+                const isDashboardHome = Object.keys(rolePathMap).includes(basePath);
+
+                if (isDashboardHome && requiredRole && parsedUser.role !== requiredRole) {
+                    router.replace('/access-denied');
+                    return;
+                }
+                setUser(parsedUser);
+            })
             .finally(() => setLoading(false));
-    }, []);
+    }, [pathname]);
 
     if (loading) {
         return (
@@ -75,7 +109,7 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
                     <span className="font-semibold text-emerald-800 capitalize">
                         {user.role.replace('_', ' ')} Portal
                     </span>
-                    <div className="w-8" /> {/* Balance spacer */}
+                    <div className="w-8" />
                 </div>
 
                 <main className="flex-1 p-4 sm:p-6 bg-emerald-50 overflow-y-auto">
