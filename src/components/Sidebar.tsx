@@ -9,15 +9,16 @@ import { authClient } from '@/lib/auth-client';
 import {
     LayoutDashboard, FileText, Link2, AlertTriangle,
     DollarSign, User, Users, LogOut, BarChart3,
-    Settings, Home
+    Settings, Home, Gauge, TrendingUp, Receipt,
+    Plug, Zap, Inbox, Clock, Calculator, ClipboardList
 } from 'lucide-react';
 
 // ========== সম্পূর্ণ মেনু কনফিগ (flat) ==========
 const menuConfig: Record<string, { href: string; label: string; icon: React.ReactNode }[]> = {
     consumer: [
         { href: '/dashboard/consumer', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { href: '/dashboard/consumer/my-bills', label: 'My Bills', icon: <FileText size={20} /> },
-        { href: '/dashboard/consumer/connections', label: 'Connections', icon: <Link2 size={20} /> },
+        { href: '/dashboard/consumer/my-bills', label: 'My Bills', icon: <Receipt size={20} /> },
+        { href: '/dashboard/consumer/connections', label: 'Connections', icon: <Plug size={20} /> },
         { href: '/dashboard/consumer/my-complaints', label: 'Complaints', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/consumer/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
@@ -25,35 +26,35 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
     xen: [
         { href: '/dashboard/xen', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/xen/all-consumers', label: 'All Consumers', icon: <Users size={20} /> },
-        { href: '/dashboard/xen/connection-applications', label: 'Applications', icon: <FileText size={20} /> },
+        { href: '/dashboard/xen/connection-applications', label: 'Applications', icon: <ClipboardList size={20} /> },
         { href: '/dashboard/xen/all-complaints', label: 'Complaints', icon: <AlertTriangle size={20} /> },
-        { href: '/dashboard/xen/all-bills', label: 'All Bills', icon: <FileText size={20} /> },
+        { href: '/dashboard/xen/all-bills', label: 'All Bills', icon: <Receipt size={20} /> },
         { href: '/dashboard/xen/all-transactions', label: 'Transactions', icon: <DollarSign size={20} /> },
-        { href: '/dashboard/xen/financial-statistics', label: 'Statistics', icon: <BarChart3 size={20} /> },
+        { href: '/dashboard/xen/financial-statistics', label: 'Statistics', icon: <TrendingUp size={20} /> },
         { href: '/dashboard/xen/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     connection: [
         { href: '/dashboard/connection', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { href: '/dashboard/connection/applications', label: 'Applications', icon: <FileText size={20} /> },
-        { href: '/dashboard/connection/meters', label: 'All Meters', icon: <AlertTriangle size={20} /> },
-        { href: '/dashboard/connection/new-connection-stats', label: 'Statistics', icon: <AlertTriangle size={20} /> },
+        { href: '/dashboard/connection/applications', label: 'Applications', icon: <ClipboardList size={20} /> },
+        { href: '/dashboard/connection/meters', label: 'All Meters', icon: <Gauge size={20} /> },
+        { href: '/dashboard/connection/new-connection-stats', label: 'Statistics', icon: <TrendingUp size={20} /> },
         { href: '/dashboard/connection/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     billing: [
         { href: '/dashboard/billing', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { href: '/dashboard/billing/all-bills', label: 'All Bills', icon: <FileText size={20} /> },
+        { href: '/dashboard/billing/all-bills', label: 'All Bills', icon: <Receipt size={20} /> },
         { href: '/dashboard/billing/all-consumers', label: 'Consumers', icon: <Users size={20} /> },
-        { href: '/dashboard/billing/generate-bills', label: 'Generate Bills', icon: <FileText size={20} /> },
-        { href: '/dashboard/billing/statistics', label: 'Statistics', icon: <FileText size={20} /> },
+        { href: '/dashboard/billing/generate-bills', label: 'Generate Bills', icon: <Calculator size={20} /> },
+        { href: '/dashboard/billing/statistics', label: 'Statistics', icon: <TrendingUp size={20} /> },
         { href: '/dashboard/billing/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     complaint: [
         { href: '/dashboard/complaint', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { href: '/dashboard/complaint/all', label: 'All', icon: <AlertTriangle size={20} /> },
-        { href: '/dashboard/complaint/pending', label: 'Pending', icon: <AlertTriangle size={20} /> },
+        { href: '/dashboard/complaint/all', label: 'All', icon: <Inbox size={20} /> },
+        { href: '/dashboard/complaint/pending', label: 'Pending', icon: <Clock size={20} /> },
         { href: '/dashboard/complaint/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
