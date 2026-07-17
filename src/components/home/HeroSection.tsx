@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { authClient } from '@/lib/auth-client';
+import { getCookie } from '@/lib/cookies';
 
 const slides = [
     {
@@ -22,15 +22,22 @@ const slides = [
 
 export default function HeroSection() {
     const [current, setCurrent] = useState(0);
-    const [user, setUser] = useState<any | null>(undefined); // undefined = checking, null = logged out
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
-        authClient.getSession()
-            .then(({ data }) => {
-                setUser(data?.user ? data.user : null);
-            })
-            .catch(() => setUser(null));
+        // সরাসরি কুকি থেকে ইউজার ইনফো চেক করি – সাথে সাথে সঠিক রেজাল্ট দেবে
+        const userStr = getCookie('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user && user.id) {
+                    setIsLoggedIn(true);
+                }
+            } catch { /* ignore parse error */ }
+        }
+    }, []);
 
+    useEffect(() => {
         const timer = setInterval(() => {
             setCurrent((prev) => (prev + 1) % slides.length);
         }, 5000);
@@ -70,8 +77,8 @@ export default function HeroSection() {
                         new connection requests, and real‑time complaint management.
                     </p>
                     <div className="flex gap-4">
-                        {/* Only show "Get Started" when user is explicitly not logged in */}
-                        {user === null && (
+                        {/* ✅ শুধু লগইন না থাকলে দেখাবে */}
+                        {!isLoggedIn && (
                             <Link
                                 href="/register"
                                 className="px-6 py-3 bg-white text-emerald-700 rounded-lg font-semibold hover:bg-gray-100 transition"
