@@ -27,7 +27,6 @@ export default function Navbar() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // 1. কুকি চেক (ইমেইল লগইনের সাথে সাথেই সেট হয়)
         const userStr = getCookie('user');
         if (userStr) {
             try {
@@ -37,8 +36,6 @@ export default function Navbar() {
                 return;
             } catch { }
         }
-
-        // 2. better‑auth সেশন চেক (Google login)
         authClient.getSession()
             .then(({ data }) => {
                 if (data?.user) {
@@ -59,19 +56,19 @@ export default function Navbar() {
 
     const isActive = (href: string) => pathname === href;
 
+    // ✅ Contact দেখাবে যদি logged-out অথবা consumer
+    const showContact = !user || user.role === 'consumer';
+
     return (
         <nav className="bg-emerald-700 text-white shadow-lg sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4">
                 <div className="flex justify-between items-center h-16">
-                    {/* ✅ Logo & Full Company Name */}
                     <Link href="/" className="flex items-center space-x-3">
                         <img
                             src="https://i.ibb.co.com/VYBv8n64/Untitled-1.png"
                             alt="WZPDCL Logo"
                             className="h-10 w-auto"
-                            onError={(e) => {
-                                e.currentTarget.style.display = 'none'; // ইমেজ না লোড হলে ফলব্যাক
-                            }}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                         <div className="hidden md:block leading-tight">
                             <p className="text-sm font-semibold">West Zone Power Distribution</p>
@@ -79,11 +76,12 @@ export default function Navbar() {
                         </div>
                     </Link>
 
-                    {/* Desktop Menu */}
                     <div className="hidden md:flex items-center space-x-6">
                         <Link href="/" className={`hover:text-emerald-200 transition ${isActive('/') ? 'font-semibold' : ''}`}>Home</Link>
                         <Link href="/about" className={`hover:text-emerald-200 transition ${isActive('/about') ? 'font-semibold' : ''}`}>About</Link>
-                        <Link href="/contact" className={`hover:text-emerald-200 transition ${isActive('/contact') ? 'font-semibold' : ''}`}>Contact</Link>
+                        {showContact && (
+                            <Link href="/contact" className={`hover:text-emerald-200 transition ${isActive('/contact') ? 'font-semibold' : ''}`}>Contact</Link>
+                        )}
 
                         {!loading && !user ? (
                             <>
@@ -104,18 +102,18 @@ export default function Navbar() {
                         )}
                     </div>
 
-                    {/* Mobile menu button */}
                     <button onClick={() => setIsOpen(!isOpen)} className="md:hidden p-2 rounded-lg hover:bg-emerald-600 transition">
                         {isOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </div>
 
-                {/* Mobile Menu */}
                 {isOpen && (
                     <div className="md:hidden pb-4 space-y-2">
                         <Link href="/" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-emerald-600 rounded transition">Home</Link>
                         <Link href="/about" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-emerald-600 rounded transition">About</Link>
-                        <Link href="/contact" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-emerald-600 rounded transition">Contact</Link>
+                        {showContact && (
+                            <Link href="/contact" onClick={() => setIsOpen(false)} className="block px-4 py-2 hover:bg-emerald-600 rounded transition">Contact</Link>
+                        )}
                         <hr className="border-emerald-600" />
                         {!loading && !user ? (
                             <>
