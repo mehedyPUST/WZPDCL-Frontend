@@ -1,4 +1,4 @@
-// src/components/Sidebar.tsx
+// src/components/Sidebar.tsx (full code)
 'use client';
 
 import React from 'react';
@@ -12,7 +12,7 @@ import {
     Settings, Home
 } from 'lucide-react';
 
-// ============ COMPLETE MENU CONFIG (flat) ============
+// ========== সম্পূর্ণ মেনু কনফিগ (flat) ==========
 const menuConfig: Record<string, { href: string; label: string; icon: React.ReactNode }[]> = {
     consumer: [
         { href: '/dashboard/consumer', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -102,13 +102,14 @@ export default function Sidebar({
 
             <aside
                 className={`
-          fixed top-0 left-0 h-full w-64 bg-emerald-800 text-white flex flex-col
+          fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-emerald-800 text-white flex flex-col
           transform transition-transform duration-200 ease-in-out z-30
-          lg:translate-x-0
+          lg:static lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
         `}
             >
-                {/* Logo area – height h-16 (matches topbar height) */}
+                {/* Logo area – height h-16 (matches topbar) */}
                 <div className="h-16 flex items-center px-4 border-b border-emerald-700">
                     <Link href="/" className="flex items-center gap-3 w-full">
                         <img
