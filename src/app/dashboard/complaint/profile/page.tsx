@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Hash, Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { authClient } from '@/lib/auth-client';
+import { getCookie } from '@/lib/cookies';
 
 export default function ComplaintManagerProfilePage() {
     const [profile, setProfile] = useState<any>(null);
@@ -27,45 +27,32 @@ export default function ComplaintManagerProfilePage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     useEffect(() => {
-        authClient.getSession()
-            .then(({ data }) => {
-                if (!data?.user) {
-                    setMessage({ type: 'error', text: 'Not authenticated' });
-                    setLoading(false);
-                    return;
-                }
-                const token = (data.session as any)?.accessToken || (data as any)?.accessToken;
+        const token = getCookie('token');
+        if (!token) {
+            setMessage({ type: 'error', text: 'Not authenticated' });
+            setLoading(false);
+            return;
+        }
 
-                if (!token) {
-                    setMessage({ type: 'error', text: 'No access token found' });
-                    setLoading(false);
-                    return;
+        // Fetch profile from backend using the token
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(res => res.json())
+            .then(userData => {
+                if (userData && userData._id) {
+                    setProfile(userData);
+                    setName(userData.name || '');
+                    setMobile(userData.mobile || '');
+                    setAddress(userData.address || '');
+                    setDob(userData.dob ? userData.dob.split('T')[0] : '');
+                    setNid(userData.nid || '');
+                } else {
+                    setMessage({ type: 'error', text: 'Failed to load profile' });
                 }
-
-                // Fetch profile from backend using the token
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                })
-                    .then(res => res.json())
-                    .then(userData => {
-                        if (userData && userData._id) {
-                            setProfile(userData);
-                            setName(userData.name || '');
-                            setMobile(userData.mobile || '');
-                            setAddress(userData.address || '');
-                            setDob(userData.dob ? userData.dob.split('T')[0] : '');
-                            setNid(userData.nid || '');
-                        } else {
-                            setMessage({ type: 'error', text: 'Failed to load profile' });
-                        }
-                    })
-                    .catch(() => setMessage({ type: 'error', text: 'Error loading profile' }))
-                    .finally(() => setLoading(false));
             })
-            .catch(() => {
-                setMessage({ type: 'error', text: 'Not authenticated' });
-                setLoading(false);
-            });
+            .catch(() => setMessage({ type: 'error', text: 'Error loading profile' }))
+            .finally(() => setLoading(false));
     }, []);
 
     const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -73,9 +60,7 @@ export default function ComplaintManagerProfilePage() {
         setSaving(true);
         setMessage(null);
 
-        const { data } = await authClient.getSession();
-        const token = (data?.session as any)?.accessToken || (data as any)?.accessToken;
-
+        const token = getCookie('token');
         if (!token) {
             setMessage({ type: 'error', text: 'Not authenticated' });
             setSaving(false);
@@ -106,9 +91,7 @@ export default function ComplaintManagerProfilePage() {
         setPasswordChanging(true);
         setMessage(null);
 
-        const { data } = await authClient.getSession();
-        const token = (data?.session as any)?.accessToken || (data as any)?.accessToken;
-
+        const token = getCookie('token');
         if (!token) {
             setMessage({ type: 'error', text: 'Not authenticated' });
             setPasswordChanging(false);
