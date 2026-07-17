@@ -1,4 +1,3 @@
-// src/components/Sidebar.tsx
 'use client';
 
 import React from 'react';
@@ -58,7 +57,15 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
     ],
 };
 
-export default function Sidebar({ role, isOpen, onClose }: { role: string; isOpen?: boolean; onClose?: () => void }) {
+export default function Sidebar({
+    role,
+    isOpen,
+    onClose
+}: {
+    role: string;
+    isOpen?: boolean;
+    onClose?: () => void
+}) {
     const pathname = usePathname();
     const router = useRouter();
     const links = menuConfig[role] || [];
