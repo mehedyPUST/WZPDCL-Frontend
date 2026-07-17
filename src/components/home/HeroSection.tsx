@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { authClient } from '@/lib/auth-client';
 
 const slides = [
     {
@@ -21,8 +22,16 @@ const slides = [
 
 export default function HeroSection() {
     const [current, setCurrent] = useState(0);
+    const [user, setUser] = useState<any>(null); // logged-in user
 
     useEffect(() => {
+        // Check if user is logged in
+        authClient.getSession().then(({ data }) => {
+            if (data?.user) {
+                setUser(data.user);
+            }
+        });
+
         const timer = setInterval(() => {
             setCurrent((prev) => (prev + 1) % slides.length);
         }, 5000);
@@ -62,12 +71,15 @@ export default function HeroSection() {
                         new connection requests, and real‑time complaint management.
                     </p>
                     <div className="flex gap-4">
-                        <Link
-                            href="/register"
-                            className="px-6 py-3 bg-white text-emerald-700 rounded-lg font-semibold hover:bg-gray-100 transition"
-                        >
-                            Get Started
-                        </Link>
+                        {/* Only show "Get Started" if not logged in */}
+                        {!user && (
+                            <Link
+                                href="/register"
+                                className="px-6 py-3 bg-white text-emerald-700 rounded-lg font-semibold hover:bg-gray-100 transition"
+                            >
+                                Get Started
+                            </Link>
+                        )}
                         <Link
                             href="/pay-bill"
                             className="px-6 py-3 border border-white text-white rounded-lg font-semibold hover:bg-emerald-700 transition"
