@@ -16,7 +16,7 @@ import {
 // ========== সম্পূর্ণ মেনু কনফিগ (flat) ==========
 const menuConfig: Record<string, { href: string; label: string; icon: React.ReactNode }[]> = {
     consumer: [
-        { href: '/dashboard/consumer', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/consumer', label: 'Dashboard Home', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/consumer/my-bills', label: 'My Bills', icon: <Receipt size={20} /> },
         { href: '/dashboard/consumer/connections', label: 'Connections', icon: <Plug size={20} /> },
         { href: '/dashboard/consumer/my-complaints', label: 'Complaints', icon: <AlertTriangle size={20} /> },
@@ -24,7 +24,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     xen: [
-        { href: '/dashboard/xen', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/xen', label: 'Dashboard Home', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/xen/all-consumers', label: 'All Consumers', icon: <Users size={20} /> },
         { href: '/dashboard/xen/connection-applications', label: 'Applications', icon: <ClipboardList size={20} /> },
         { href: '/dashboard/xen/all-complaints', label: 'Complaints', icon: <AlertTriangle size={20} /> },
@@ -35,7 +35,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     connection: [
-        { href: '/dashboard/connection', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/connection', label: 'Dashboard Home', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/connection/applications', label: 'Applications', icon: <ClipboardList size={20} /> },
         { href: '/dashboard/connection/meters', label: 'All Meters', icon: <Gauge size={20} /> },
         { href: '/dashboard/connection/new-connection-stats', label: 'Statistics', icon: <TrendingUp size={20} /> },
@@ -43,7 +43,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     billing: [
-        { href: '/dashboard/billing', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/billing', label: 'Dashboard Home', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/billing/all-bills', label: 'All Bills', icon: <Receipt size={20} /> },
         { href: '/dashboard/billing/all-consumers', label: 'Consumers', icon: <Users size={20} /> },
         { href: '/dashboard/billing/generate-bills', label: 'Generate Bills', icon: <Calculator size={20} /> },
@@ -52,14 +52,14 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     complaint: [
-        { href: '/dashboard/complaint', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/complaint', label: 'Dashboard Home', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/complaint/all', label: 'All', icon: <Inbox size={20} /> },
         { href: '/dashboard/complaint/pending', label: 'Pending', icon: <Clock size={20} /> },
         { href: '/dashboard/complaint/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     admin: [
-        { href: '/dashboard/admin', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/admin', label: 'Dashboard Home', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/admin/users', label: 'User Management', icon: <Users size={20} /> },
         { href: '/dashboard/admin/all-consumers', label: 'All Consumers', icon: <Users size={20} /> },
         { href: '/dashboard/admin/settings', label: 'Rate Settings', icon: <Settings size={20} /> },
