@@ -74,49 +74,25 @@ export default function ComplaintManagerDashboard({ initialFilter = 'all' }: { i
         fetchComplaints();
     }, []);
 
-    // Resilient fallback status updates
-    const updateComplaintStatus = async (id: string, status: string, teamInfo: string) => {
+    // Align status updates with Express backend PUT /complaints/action/:id
+    const updateComplaintStatus = async (id: string, action: 'sendTeam' | 'resolve', teamInfo: string) => {
         const token = getCookie('token');
         if (!token) throw new Error('Not authenticated');
 
-        const payloads = [
-            { url: `${process.env.NEXT_PUBLIC_API_URL}/complaints/resolve/${id}`, method: 'PUT', body: { status, teamInfo } },
-            { url: `${process.env.NEXT_PUBLIC_API_URL}/complaints/update/${id}`, method: 'PUT', body: { status, teamInfo } },
-            { url: `${process.env.NEXT_PUBLIC_API_URL}/complaints/${id}`, method: 'PUT', body: { status, teamInfo } },
-            { url: `${process.env.NEXT_PUBLIC_API_URL}/complaints/status`, method: 'PUT', body: { complaintId: id, status, teamInfo } }
-        ];
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/complaints/action/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ action, teamInfo })
+        });
 
-        let success = false;
-        let finalData = null;
-        let lastErrorMsg = 'Failed to update complaint';
-
-        for (const option of payloads) {
-            try {
-                const res = await fetch(option.url, {
-                    method: option.method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(option.body)
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    success = true;
-                    finalData = data;
-                    break;
-                } else {
-                    lastErrorMsg = data.message || lastErrorMsg;
-                }
-            } catch (err: any) {
-                lastErrorMsg = err.message || lastErrorMsg;
-            }
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.message || 'Failed to update complaint status');
         }
-
-        if (!success) {
-            throw new Error(lastErrorMsg);
-        }
-        return finalData;
+        return data;
     };
 
     const handleActionSubmit = async (e: React.FormEvent) => {
@@ -127,7 +103,8 @@ export default function ComplaintManagerDashboard({ initialFilter = 'all' }: { i
         setActionError(null);
 
         try {
-            await updateComplaintStatus(selectedComplaint._id, actionType, teamInfoText);
+            const backendAction = actionType === 'teamSent' ? 'sendTeam' : 'resolve';
+            await updateComplaintStatus(selectedComplaint._id, backendAction, teamInfoText);
             setShowActionModal(false);
             setTeamInfoText('');
             setSelectedComplaint(null);
