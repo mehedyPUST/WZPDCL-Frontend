@@ -111,9 +111,9 @@ export default function Sidebar({
 
             <aside
                 className={`
-          fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-emerald-800 text-white flex flex-col
-          transform transition-transform duration-200 ease-in-out z-30
-          lg:static lg:top-0 lg:h-screen lg:z-auto lg:flex-shrink-0
+          fixed inset-y-0 left-0 h-screen w-64 bg-emerald-800 text-white flex flex-col
+          transform transition-transform duration-200 ease-in-out z-40
+          lg:sticky lg:top-0 lg:h-screen lg:z-10 lg:flex-shrink-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}

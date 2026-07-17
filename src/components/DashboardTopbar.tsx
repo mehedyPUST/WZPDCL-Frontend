@@ -44,7 +44,7 @@ export default function DashboardTopbar({ user, toggleSidebar }: TopbarProps) {
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center px-4">
+    <header className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center px-4 sticky top-0 z-20">
       {/* Left: only hamburger on mobile – otherwise nothing */}
       <button onClick={toggleSidebar} className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 mr-2">
         <Menu size={20} />
