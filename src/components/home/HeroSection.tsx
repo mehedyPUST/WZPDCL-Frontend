@@ -22,15 +22,14 @@ const slides = [
 
 export default function HeroSection() {
     const [current, setCurrent] = useState(0);
-    const [user, setUser] = useState<any>(null); // logged-in user
+    const [user, setUser] = useState<any | null>(undefined); // undefined = checking, null = logged out
 
     useEffect(() => {
-        // Check if user is logged in
-        authClient.getSession().then(({ data }) => {
-            if (data?.user) {
-                setUser(data.user);
-            }
-        });
+        authClient.getSession()
+            .then(({ data }) => {
+                setUser(data?.user ? data.user : null);
+            })
+            .catch(() => setUser(null));
 
         const timer = setInterval(() => {
             setCurrent((prev) => (prev + 1) % slides.length);
@@ -71,8 +70,8 @@ export default function HeroSection() {
                         new connection requests, and real‑time complaint management.
                     </p>
                     <div className="flex gap-4">
-                        {/* Only show "Get Started" if not logged in */}
-                        {!user && (
+                        {/* Only show "Get Started" when user is explicitly not logged in */}
+                        {user === null && (
                             <Link
                                 href="/register"
                                 className="px-6 py-3 bg-white text-emerald-700 rounded-lg font-semibold hover:bg-gray-100 transition"
