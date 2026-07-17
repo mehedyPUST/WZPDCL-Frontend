@@ -1,4 +1,3 @@
-// src/app/dashboard/consumer/my-complaints/page.tsx
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,7 +10,6 @@ import {
 import { getCookie } from '@/lib/cookies';
 import Modal from '@/components/ui/Modal';
 import ClaimMeterModal from '@/components/ClaimMeterModal';
-import { apiFetch } from '@/lib/api-client';
 
 interface Complaint {
     _id: string;
@@ -72,9 +70,18 @@ export default function ConsumerMyComplaintsPage() {
     const fetchData = async () => {
         setLoading(true);
         setError(null);
+        const token = getCookie('token');
+        if (!token) {
+            setError('Not authenticated');
+            setLoading(false);
+            return;
+        }
         try {
             // fetch claimed meters
-            const meterData = await apiFetch<Meter[]>('/meters/my');
+            const meterRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/meters/my`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const meterData = await meterRes.json();
             const metersList: Meter[] = Array.isArray(meterData) ? meterData : [];
             setClaimedMeters(metersList);
 
@@ -85,7 +92,10 @@ export default function ConsumerMyComplaintsPage() {
             }
 
             // fetch complaints for the logged‑in user
-            const compData = await apiFetch<Complaint[]>('/complaints/my');
+            const compRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/complaints/my`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const compData = await compRes.json();
             setComplaints(Array.isArray(compData) ? compData : []);
         } catch (err: any) {
             setError(err.message);
@@ -148,16 +158,27 @@ export default function ConsumerMyComplaintsPage() {
         }
         setIsSubmitting(true);
         setFormError(null);
-
+        const token = getCookie('token');
+        if (!token) {
+            setFormError('Not authenticated');
+            setIsSubmitting(false);
+            return;
+        }
         try {
-            await apiFetch('/complaints/register', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/complaints/register`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({ meterNumber: newMeterNumber, description: newDescription }),
             });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to submit complaint');
 
             setNewDescription('');
             setShowNewModal(false);
-            fetchData(); // refresh list
+            fetchData();
         } catch (err: any) {
             setFormError(err.message);
         } finally {
@@ -169,15 +190,27 @@ export default function ConsumerMyComplaintsPage() {
         e.preventDefault();
         setSubmittingReview(true);
         setReviewError(null);
+        const token = getCookie('token');
+        if (!token) {
+            setReviewError('Not authenticated');
+            setSubmittingReview(false);
+            return;
+        }
         try {
-            await apiFetch('/reviews/submit', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/submit`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     complaintId,
                     rating,
-                    text: reviewText
-                })
+                    text: reviewText,
+                }),
             });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to submit review');
 
             localStorage.setItem(`wzpdcl_rated_${complaintId}`, 'true');
             setRatedComplaints(prev => ({ ...prev, [complaintId]: true }));
