@@ -68,11 +68,13 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
 export default function Sidebar({
     role,
     isOpen,
-    onClose
+    onClose,
+    user,
 }: {
     role: string;
     isOpen?: boolean;
-    onClose?: () => void
+    onClose?: () => void;
+    user?: { name: string; email: string; role: string; image?: string };
 }) {
     const pathname = usePathname();
     const router = useRouter();
@@ -91,29 +93,34 @@ export default function Sidebar({
         if (onClose) onClose();
     };
 
+    const getInitials = (name: string) => {
+        return name
+            .split(' ')
+            .map((n) => n[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 2);
+    };
+
     return (
         <>
-            {/* Mobile overlay */}
             {isOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-                    onClick={onClose}
-                />
+                <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />
             )}
 
-            {/* Sidebar – top-16 accounts for the new DashboardTopbar height */}
             <aside
-                className={`
-                    fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-emerald-800 text-white flex flex-col
-                    transform transition-transform duration-200 ease-in-out z-30
-                    lg:translate-x-0 lg:static lg:top-0 lg:h-screen
-                    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-                `}
+                className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-emerald-800 text-white flex flex-col
+        transform transition-transform duration-200 ease-in-out z-30
+        lg:translate-x-0 lg:static lg:top-0 lg:h-screen
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
+                {/* Logo area */}
                 <div className="p-4 border-b border-emerald-700">
                     <h1 className="text-xl font-bold">WZPDCL</h1>
-                    <p className="text-xs text-emerald-300 capitalize">{role}</p>
+                    <p className="text-xs text-emerald-300">S&D-1, Kushtia</p>
                 </div>
+
+                {/* Navigation */}
                 <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
                     {links.map((link) => {
                         const isActive = pathname === link.href;
@@ -122,7 +129,8 @@ export default function Sidebar({
                                 key={link.href}
                                 href={link.href}
                                 onClick={handleLinkClick}
-                                className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${isActive ? 'bg-emerald-600' : 'hover:bg-emerald-700'}`}
+                                className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${isActive ? 'bg-emerald-600' : 'hover:bg-emerald-700'
+                                    }`}
                             >
                                 {link.icon}
                                 <span>{link.label}</span>
@@ -130,15 +138,32 @@ export default function Sidebar({
                         );
                     })}
                 </nav>
-                <div className="p-2 border-t border-emerald-700">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-red-600 transition-colors text-left"
-                    >
-                        <LogOut size={18} />
-                        <span>Logout</span>
-                    </button>
-                </div>
+
+                {/* User profile card at bottom */}
+                {user && (
+                    <div className="p-3 border-t border-emerald-700">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold shrink-0">
+                                {user.image ? (
+                                    <img src={user.image} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                    getInitials(user.name)
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{user.name}</p>
+                                <p className="text-xs text-emerald-300 truncate">{user.email}</p>
+                            </div>
+                            <button
+                                onClick={handleLogout}
+                                className="p-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                                title="Logout"
+                            >
+                                <LogOut size={16} />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </aside>
         </>
     );

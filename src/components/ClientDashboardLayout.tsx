@@ -40,18 +40,16 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
             return;
         }
 
-        // backend থেকে fresh role আনি
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
         })
-            .then(res => res.json())
-            .then(freshUser => {
+            .then((res) => res.json())
+            .then((freshUser) => {
                 if (freshUser?.role) {
                     parsedUser.role = freshUser.role;
                     setCookie('user', JSON.stringify(parsedUser), 7);
                 }
 
-                // Role check: current path allowed for this role?
                 const basePath = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
                 const requiredRole = rolePathMap[basePath];
                 const isDashboardHome = Object.keys(rolePathMap).includes(basePath);
@@ -64,7 +62,6 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
                 setUser(parsedUser);
             })
             .catch(() => {
-                // API fail – পুরনো role দিয়েও block করি প্রয়োজনে
                 const basePath = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
                 const requiredRole = rolePathMap[basePath];
                 const isDashboardHome = Object.keys(rolePathMap).includes(basePath);
@@ -89,25 +86,18 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-emerald-50">
-            {/* Topbar */}
-            <DashboardTopbar
-                user={user}
-                toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-            />
+        <div className="min-h-screen bg-gray-50">
+            <DashboardTopbar user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
 
             <div className="flex">
-                {/* Sidebar */}
                 <Sidebar
                     role={user.role}
                     isOpen={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
+                    user={user}
                 />
 
-                {/* Main Content */}
-                <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
-                    {children}
-                </main>
+                <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">{children}</main>
             </div>
         </div>
     );
