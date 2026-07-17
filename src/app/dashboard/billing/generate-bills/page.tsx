@@ -5,8 +5,9 @@ import { useEffect, useState, useMemo } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Search, RefreshCw, ChevronLeft, ChevronRight,
-    PlusCircle, Calculator, CheckCircle, AlertCircle, X, Zap, Package, Clock, Calendar
+    PlusCircle, Calculator, CheckCircle, AlertCircle, X, Zap, Package, Clock, Calendar, Info
 } from 'lucide-react';
+import { calculateBangladeshBill } from '@/lib/tariff-calculator';
 
 interface Meter {
     _id: string;
@@ -352,14 +353,66 @@ export default function GenerateBillsPage() {
                                 </div>
                             </div>
 
-                            {preview && (
-                                <div className="bg-emerald-50 rounded-lg p-4 space-y-2">
-                                    <h4 className="font-semibold text-emerald-800">Bill Preview</h4>
-                                    <div className="flex justify-between text-sm"><span>Units Consumed</span><span>{preview.units} kWh</span></div>
-                                    <div className="flex justify-between text-sm"><span>Rate</span><span>৳{preview.rate}/kWh</span></div>
-                                    <div className="flex justify-between font-bold text-emerald-700 border-t border-emerald-200 pt-2"><span>Total Amount</span><span>৳{preview.amount.toLocaleString()}</span></div>
-                                </div>
-                            )}
+                            {preview && (() => {
+                                const bBill = calculateBangladeshBill(preview.units, (selectedMeter.consumerType || 'residential') as any);
+                                return (
+                                    <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100/60 space-y-3.5">
+                                        <div className="flex items-center justify-between border-b border-emerald-200/50 pb-2">
+                                            <h4 className="font-bold text-emerald-800 flex items-center gap-1.5 text-sm">
+                                                <Info size={16} />
+                                                <span>BERC Stepped Bill Preview</span>
+                                            </h4>
+                                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                                {selectedMeter.consumerType || 'residential'}
+                                            </span>
+                                        </div>
+
+                                        <div className="space-y-1 text-xs text-emerald-800/80">
+                                            <div className="flex justify-between">
+                                                <span>Total Consumption:</span>
+                                                <span className="font-bold font-mono">{preview.units} Units (kWh)</span>
+                                            </div>
+
+                                            {/* Slabs list */}
+                                            <div className="space-y-1 my-2 bg-white/50 rounded-lg p-2 text-[11px] text-gray-700">
+                                                <p className="font-semibold text-emerald-900 mb-1">Stepped Slabs:</p>
+                                                {bBill.slabs.map((slab, i) => (
+                                                    <div key={i} className="flex justify-between font-mono">
+                                                        <span>{slab.slabName}</span>
+                                                        <span>{slab.units} × ৳{slab.rate.toFixed(2)} = ৳{slab.amount.toFixed(2)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex justify-between">
+                                                <span>Energy Charges:</span>
+                                                <span className="font-mono">৳{bBill.energyCharge.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Demand Charge:</span>
+                                                <span className="font-mono">৳{bBill.demandCharge.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span>Service Charge (Meter Rent):</span>
+                                                <span className="font-mono">৳{bBill.serviceCharge.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-yellow-800">
+                                                <span>VAT Amount (5%):</span>
+                                                <span className="font-mono">৳{bBill.vatAmount.toFixed(2)}</span>
+                                            </div>
+
+                                            <div className="flex justify-between font-bold text-emerald-900 border-t border-emerald-200/50 pt-2 text-sm">
+                                                <span>Net BERC Tariff Amount:</span>
+                                                <span className="font-mono text-base">৳{bBill.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+
+                                            <div className="text-[10px] text-emerald-800/60 leading-tight pt-1">
+                                                * Note: The base bill is generated as ৳{preview.amount.toLocaleString()} in the system database. The invoice generated for the customer will display the full BERC multi-tier breakdown shown above for compliance.
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {message && (
                                 <div className={`p-3 rounded-lg flex items-start gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
