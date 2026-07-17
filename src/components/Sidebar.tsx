@@ -8,7 +8,8 @@ import { authClient } from '@/lib/auth-client';
 import {
     LayoutDashboard, FileText, Link2, AlertTriangle,
     DollarSign, User, Users, LogOut, BarChart3,
-    Settings
+    Settings,
+    Home
 } from 'lucide-react';
 
 const menuConfig: Record<string, { href: string; label: string; icon: React.ReactNode }[]> = {
@@ -18,6 +19,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/consumer/connections', label: 'Connections', icon: <Link2 size={20} /> },
         { href: '/dashboard/consumer/my-complaints', label: 'Complaints', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/consumer/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     xen: [
         { href: '/dashboard/xen', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -28,6 +30,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/xen/all-transactions', label: 'Transactions', icon: <DollarSign size={20} /> },
         { href: '/dashboard/xen/financial-statistics', label: 'Statistics', icon: <BarChart3 size={20} /> },
         { href: '/dashboard/xen/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     connection: [
         { href: '/dashboard/connection', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -35,6 +38,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/connection/meters', label: 'All Meters', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/connection/new-connection-stats', label: 'Statistics', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/connection/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     billing: [
         { href: '/dashboard/billing', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -42,18 +46,22 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/dashboard/billing/all-consumers', label: 'Consumers', icon: <Users size={20} /> },
         { href: '/dashboard/billing/generate-bills', label: 'Generate Bills', icon: <FileText size={20} /> },
         { href: '/dashboard/billing/statistics', label: 'Statistics', icon: <FileText size={20} /> },
+        { href: '/dashboard/billing/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     complaint: [
         { href: '/dashboard/complaint_manager', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/complaint_manager/complaints/all', label: 'All', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/complaint_manager/complaints/pending', label: 'Pending', icon: <AlertTriangle size={20} /> },
         { href: '/dashboard/complaint_manager/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     admin: [
         { href: '/dashboard/admin', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/admin/users', label: 'User Management', icon: <Users size={20} /> },
         { href: '/dashboard/admin/settings', label: 'Rate Settings', icon: <Settings size={20} /> },
         { href: '/dashboard/admin/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
 };
 
