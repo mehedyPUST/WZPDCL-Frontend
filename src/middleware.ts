@@ -2,23 +2,22 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-    // 1. আগে আমাদের custom token cookie চেক করো (email login)
-    const customToken = request.cookies.get("token");
-    if (customToken) {
-        return NextResponse.next();
-    }
+    const { pathname } = request.nextUrl;
 
-    // 2. custom token না থাকলে better-auth session token চেক করো (Google login)
+    const customToken = request.cookies.get("token");
     const sessionToken =
         request.cookies.get("better-auth.session_token") ||
         request.cookies.get("__Secure-better-auth.session_token");
 
-    if (sessionToken) {
-        return NextResponse.next();
+    const isAuthenticated = !!(customToken || sessionToken);
+
+    // 1. If user is authenticated and trying to access login/register, redirect to dashboard
+    if (isAuthenticated && (pathname === "/login" || pathname === "/register")) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    // 3. একটাও না থাকলে /login-এ পাঠাও
-    if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    // 2. If user is not authenticated and trying to access dashboard, redirect to login
+    if (!isAuthenticated && pathname.startsWith("/dashboard")) {
         return NextResponse.redirect(new URL("/login", request.url));
     }
 
@@ -26,5 +25,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/dashboard/:path*"],
+    matcher: ["/dashboard/:path*", "/login", "/register"],
 };
