@@ -25,10 +25,20 @@ export default function DashboardTopbar({ user, toggleSidebar }: TopbarProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleLogout = async () => {
-    removeCookie('token'); removeCookie('user');
-    try { await authClient.signOut(); } catch { }
-    router.push('/login');
+  const handleLogout = () => {
+    // Clear all auth cookies immediately
+    removeCookie('token');
+    removeCookie('user');
+    removeCookie('better-auth.session_token');
+    removeCookie('__Secure-better-auth.session_token');
+
+    // Asynchronously call signOut to clean up server session if it exists, without blocking the user
+    authClient.signOut().catch((e) => {
+      console.error("Logout error in DashboardTopbar:", e);
+    });
+
+    // Redirect immediately with full page reload to completely flush all client memory/state
+    window.location.href = '/login';
   };
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);

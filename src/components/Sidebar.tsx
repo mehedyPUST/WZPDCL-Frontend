@@ -81,11 +81,20 @@ export default function Sidebar({
     const router = useRouter();
     const links = menuConfig[role] || [];
 
-    const handleLogout = async () => {
+    const handleLogout = () => {
+        // Clear all auth cookies immediately
         removeCookie('token');
         removeCookie('user');
-        try { await authClient.signOut(); } catch { }
-        router.push('/login');
+        removeCookie('better-auth.session_token');
+        removeCookie('__Secure-better-auth.session_token');
+
+        // Asynchronously call signOut to clean up server session if it exists, without blocking the user
+        authClient.signOut().catch((e) => {
+            console.error("Logout error in Sidebar:", e);
+        });
+
+        // Redirect immediately with full page reload to completely flush all client memory/state
+        window.location.href = '/login';
     };
 
     const handleLinkClick = () => { if (onClose) onClose(); };
