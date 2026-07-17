@@ -1,3 +1,4 @@
+// src/components/Sidebar.tsx
 'use client';
 
 import React from 'react';
@@ -11,6 +12,7 @@ import {
     Settings, Home
 } from 'lucide-react';
 
+// ============ COMPLETE MENU CONFIG (flat) ============
 const menuConfig: Record<string, { href: string; label: string; icon: React.ReactNode }[]> = {
     consumer: [
         { href: '/dashboard/consumer', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -88,51 +90,77 @@ export default function Sidebar({
 
     const handleLinkClick = () => { if (onClose) onClose(); };
 
-    const getInitials = (name: string) => {
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    };
+    const getInitials = (name: string) =>
+        name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
     return (
         <>
-            {isOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
+            {/* Mobile overlay */}
+            {isOpen && (
+                <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />
+            )}
 
-            <aside className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-emerald-800 text-white flex flex-col transform transition-transform duration-200 ease-in-out z-30 lg:translate-x-0 lg:static lg:top-0 lg:h-screen ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                {/* Logo + Branding */}
-                <div className="p-4 border-b border-emerald-700 flex items-center gap-3">
-                    <img src="https://i.ibb.co.com/VYBv8n64/Untitled-1.png" alt="WZPDCL Logo" className="h-10 w-auto rounded" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    <div>
-                        <h1 className="text-lg font-bold">WZPDCL</h1>
-                        <p className="text-[10px] text-emerald-300 leading-tight">S&D-1, Kushtia</p>
-                    </div>
+            <aside
+                className={`
+          fixed top-0 left-0 h-full w-64 bg-emerald-800 text-white flex flex-col
+          transform transition-transform duration-200 ease-in-out z-30
+          lg:translate-x-0
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+            >
+                {/* Logo area – height h-16 (matches topbar height) */}
+                <div className="h-16 flex items-center px-4 border-b border-emerald-700">
+                    <Link href="/" className="flex items-center gap-3 w-full">
+                        <img
+                            src="https://i.ibb.co.com/VYBv8n64/Untitled-1.png"
+                            alt="WZPDCL Logo"
+                            className="h-10 w-auto rounded"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                        <div className="flex-1 min-w-0">
+                            <h1 className="text-lg font-bold leading-tight">WZPDCL</h1>
+                            <p className="text-[10px] text-emerald-300 leading-tight">S&D-1, Kushtia</p>
+                        </div>
+                    </Link>
                 </div>
 
-                {/* Role */}
-                <div className="px-4 py-2 text-xs text-emerald-400 capitalize border-b border-emerald-700">{role} Portal</div>
-
-                {/* Navigation */}
-                <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+                {/* Navigation links */}
+                <nav className="flex-1 overflow-y-auto p-2 space-y-1">
                     {links.map((link) => {
                         const isActive = pathname === link.href;
                         return (
-                            <Link key={link.href} href={link.href} onClick={handleLinkClick} className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${isActive ? 'bg-emerald-600' : 'hover:bg-emerald-700'}`}>
-                                {link.icon}<span>{link.label}</span>
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={handleLinkClick}
+                                className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${isActive ? 'bg-emerald-600' : 'hover:bg-emerald-700'
+                                    }`}
+                            >
+                                {link.icon}
+                                <span>{link.label}</span>
                             </Link>
                         );
                     })}
                 </nav>
 
-                {/* User + Logout */}
+                {/* User card + logout at bottom */}
                 {user && (
                     <div className="p-3 border-t border-emerald-700">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold shrink-0">
-                                {user.image ? <img src={user.image} alt={user.name} className="w-full h-full rounded-full object-cover" /> : getInitials(user.name)}
+                                {user.image ? (
+                                    <img src={user.image} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                    getInitials(user.name)
+                                )}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">{user.name}</p>
                                 <p className="text-xs text-emerald-300 truncate">{user.email}</p>
                             </div>
-                            <button onClick={handleLogout} className="p-2 rounded-lg hover:bg-emerald-700 transition-colors" title="Logout"><LogOut size={16} /></button>
+                            <button onClick={handleLogout} className="p-2 rounded-lg hover:bg-emerald-700 transition-colors" title="Logout">
+                                <LogOut size={16} />
+                            </button>
                         </div>
                     </div>
                 )}

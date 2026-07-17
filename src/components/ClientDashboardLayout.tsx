@@ -1,3 +1,4 @@
+// src/components/ClientDashboardLayout.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -43,11 +44,19 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <DashboardTopbar user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-            <div className="flex">
-                <Sidebar role={user.role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} user={user} />
-                <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">{children}</main>
+        <div className="min-h-screen flex">
+            {/* Sidebar – always full height, fixed width on desktop, overlay on mobile */}
+            <Sidebar
+                role={user.role}
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                user={user}
+            />
+
+            {/* Right column – topbar + main content */}
+            <div className="flex-1 flex flex-col min-w-0">
+                <DashboardTopbar user={user} toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+                <main className="flex-1 p-4 sm:p-6 bg-gray-50 overflow-x-hidden">{children}</main>
             </div>
         </div>
     );
