@@ -11,7 +11,8 @@ const rolePaths: Record<string, string> = {
     xen: '/dashboard/xen',
     connection_wing: '/dashboard/connection',
     connection: '/dashboard/connection',
-    complaint_manager: '/dashboard/complaint_manager',
+    complaint_manager: '/dashboard/complaint',
+    complaint: '/dashboard/complaint',
     billing: '/dashboard/billing',
     consumer: '/dashboard/consumer',
 };

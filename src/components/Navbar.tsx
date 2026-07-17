@@ -12,7 +12,7 @@ const getDashboardPath = (role: string) => {
         admin: '/dashboard/admin',
         xen: '/dashboard/xen',
         connection: '/dashboard/connection',
-        complaint: '/dashboard/complaint_manager',
+        complaint: '/dashboard/complaint',
         billing: '/dashboard/billing',
         consumer: '/dashboard/consumer',
     };

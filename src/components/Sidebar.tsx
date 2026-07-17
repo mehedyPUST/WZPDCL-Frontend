@@ -51,10 +51,10 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     complaint: [
-        { href: '/dashboard/complaint_manager', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-        { href: '/dashboard/complaint_manager/complaints/all', label: 'All', icon: <AlertTriangle size={20} /> },
-        { href: '/dashboard/complaint_manager/complaints/pending', label: 'Pending', icon: <AlertTriangle size={20} /> },
-        { href: '/dashboard/complaint_manager/profile', label: 'Profile', icon: <User size={20} /> },
+        { href: '/dashboard/complaint', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+        { href: '/dashboard/complaint/all', label: 'All', icon: <AlertTriangle size={20} /> },
+        { href: '/dashboard/complaint/pending', label: 'Pending', icon: <AlertTriangle size={20} /> },
+        { href: '/dashboard/complaint/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
     ],
     admin: [

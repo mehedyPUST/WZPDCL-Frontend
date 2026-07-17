@@ -13,7 +13,7 @@ const rolePaths: Record<string, string> = {
     admin: '/dashboard/admin',
     xen: '/dashboard/xen',
     connection_wing: '/dashboard/connection',
-    complaint_manager: '/dashboard/complaint_manager',
+    complaint_manager: '/dashboard/complaint',
     billing: '/dashboard/billing',
     consumer: '/dashboard/consumer',
 };

@@ -44,7 +44,9 @@ function LoginForm() {
                 admin: '/dashboard/admin',
                 xen: '/dashboard/xen',
                 connection_wing: '/dashboard/connection',
-                complaint_manager: '/dashboard/complaint_manager',
+                connection: '/dashboard/connection',
+                complaint_manager: '/dashboard/complaint',
+                complaint: '/dashboard/complaint',
                 billing: '/dashboard/billing',
                 consumer: '/dashboard/consumer',
             };

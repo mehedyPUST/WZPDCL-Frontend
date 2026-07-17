@@ -9,7 +9,7 @@ import { getCookie, setCookie } from '@/lib/cookies';
 
 const rolePathMap: Record<string, string> = {
     '/dashboard/admin': 'admin', '/dashboard/xen': 'xen', '/dashboard/connection': 'connection',
-    '/dashboard/billing': 'billing', '/dashboard/complaint_manager': 'complaint', '/dashboard/consumer': 'consumer',
+    '/dashboard/billing': 'billing', '/dashboard/complaint': 'complaint', '/dashboard/consumer': 'consumer',
 };
 
 export default function ClientDashboardLayout({ children }: { children: React.ReactNode }) {
