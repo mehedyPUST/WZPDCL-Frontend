@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import {
     FileText, Search, ChevronLeft, ChevronRight, RefreshCw,
     Loader2, AlertCircle, CheckCircle, Zap, Plus, CreditCard,
-    Printer, X
+    Printer, X, Info
 } from 'lucide-react';
 import { getCookie } from '@/lib/cookies';
 import ClaimMeterModal from '@/components/ClaimMeterModal';
+import { calculateBangladeshBill } from '@/lib/tariff-calculator';
 
 interface Bill {
     _id: string;
@@ -17,6 +18,10 @@ interface Bill {
     amount: number;
     status: 'paid' | 'unpaid';
     dueDate: string;
+    prevReading?: number;
+    currReading?: number;
+    consumerType?: 'residential' | 'commercial' | 'industrial';
+    billingMonth?: string;
 }
 
 interface Meter {
@@ -403,121 +408,177 @@ export default function MyBillsPage() {
                 onSuccess={() => { setShowClaimModal(false); fetchMetersAndBills(); }}
             />
 
-            {showInvoiceModal && selectedInvoice && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
-                        <button
-                            onClick={() => { setShowInvoiceModal(false); setSelectedInvoice(null); }}
-                            className="absolute right-4 top-4 p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
-                        >
-                            <X size={20} />
-                        </button>
+            {showInvoiceModal && selectedInvoice && (() => {
+                const consumerType = selectedInvoice.consumerType || 'residential';
+                const rate = consumerType === 'industrial' ? 15 : consumerType === 'commercial' ? 10 : 5;
+                const units = Math.max(1, Math.round(selectedInvoice.amount / rate));
+                const bBill = calculateBangladeshBill(units, consumerType);
+                const adjustment = selectedInvoice.amount - bBill.totalAmount;
+                const prevReading = selectedInvoice.prevReading ?? Math.round(10200 + selectedInvoice.amount * 0.08);
+                const currReading = selectedInvoice.currReading ?? (prevReading + units);
 
-                        <div id="printable-invoice-content" className="p-4 bg-white">
-                            {/* WZPDCL Letterhead */}
-                            <div className="text-center border-b-2 border-emerald-500 pb-4 mb-6">
-                                <h1 className="text-xl sm:text-2xl font-bold text-emerald-800 tracking-tight">
-                                    WEST ZONE POWER DISTRIBUTION CO. LTD.
-                                </h1>
-                                <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-semibold tracking-wider mt-0.5">
-                                    An Enterprise of Bangladesh Power Development Board
-                                </p>
-                                <p className="text-xs sm:text-sm text-gray-700 font-semibold mt-2">
-                                    OFFICIAL UTILITY BILL INVOICE
-                                </p>
-                            </div>
+                return (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative">
+                            <button
+                                onClick={() => { setShowInvoiceModal(false); setSelectedInvoice(null); }}
+                                className="absolute right-4 top-4 p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+                            >
+                                <X size={20} />
+                            </button>
 
-                            {/* Info Block */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-600 mb-6">
-                                <div>
-                                    <p className="font-bold text-gray-800 text-sm mb-1.5">Billed To:</p>
-                                    <p className="font-semibold text-gray-700">{user?.name || 'Valued Consumer'}</p>
-                                    <p>{user?.email || ''}</p>
-                                    <p className="mt-1 font-semibold text-gray-700">Meter No: {selectedInvoice.meterNumber}</p>
+                            <div id="printable-invoice-content" className="p-4 bg-white">
+                                {/* WZPDCL Letterhead */}
+                                <div className="text-center border-b-2 border-emerald-500 pb-4 mb-6">
+                                    <h1 className="text-xl sm:text-2xl font-bold text-emerald-800 tracking-tight">
+                                        WEST ZONE POWER DISTRIBUTION CO. LTD.
+                                    </h1>
+                                    <p className="text-[10px] sm:text-xs text-gray-500 uppercase font-semibold tracking-wider mt-0.5">
+                                        An Enterprise of Bangladesh Power Development Board
+                                    </p>
+                                    <p className="text-xs sm:text-sm text-gray-700 font-semibold mt-2">
+                                        OFFICIAL UTILITY BILL INVOICE (BERC SLAB BASES)
+                                    </p>
                                 </div>
-                                <div className="sm:text-right">
-                                    <p className="font-bold text-gray-800 text-sm mb-1.5">Invoice Details:</p>
-                                    <p><span className="font-semibold">Invoice No:</span> INV-{selectedInvoice._id.slice(-6).toUpperCase()}</p>
-                                    <p><span className="font-semibold">Issue Date:</span> {new Date().toLocaleDateString()}</p>
-                                    <p><span className="font-semibold text-red-600">Due Date:</span> {new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
-                                </div>
-                            </div>
 
-                            {/* Itemized Table */}
-                            <div className="border border-gray-100 rounded-xl overflow-hidden mb-6">
-                                <table className="w-full text-xs text-left">
-                                    <thead className="bg-gray-50 font-semibold text-gray-700">
-                                        <tr>
-                                            <th className="p-3">Description</th>
-                                            <th className="p-3 text-right">Rate / Base</th>
-                                            <th className="p-3 text-right">Amount (BDT)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100 text-gray-600">
-                                        <tr>
-                                            <td className="p-3">
-                                                <p className="font-semibold text-gray-800">Energy Consumption Charge</p>
-                                                <p className="text-[10px] text-gray-400">Based on domestic residential rate tier</p>
-                                            </td>
-                                            <td className="p-3 text-right">Standard Tier</td>
-                                            <td className="p-3 text-right">৳{(selectedInvoice.amount * 0.85).toFixed(2)}</td>
-                                        </tr>
-                                        <tr>
-                                            <td className="p-3">
-                                                <p className="font-semibold text-gray-800">Demand Charge & Service Fee</p>
-                                                <p className="text-[10px] text-gray-400">Fixed connection fee</p>
-                                            </td>
-                                            <td className="p-3 text-right">Fixed</td>
-                                            <td className="p-3 text-right">৳{(selectedInvoice.amount * 0.10).toFixed(2)}</td>
-                                        </tr>
-                                        <tr>
-                                            <td className="p-3">
-                                                <p className="font-semibold text-gray-800">VAT / Govt. Duty (5%)</p>
-                                                <p className="text-[10px] text-gray-400">Statutory energy taxes</p>
-                                            </td>
-                                            <td className="p-3 text-right">5%</td>
-                                            <td className="p-3 text-right">৳{(selectedInvoice.amount * 0.05).toFixed(2)}</td>
-                                        </tr>
-                                        <tr className="bg-gray-50 font-bold text-gray-800 text-sm">
-                                            <td className="p-3" colSpan={2}>Net Payable Amount</td>
-                                            <td className="p-3 text-right text-emerald-700">৳{selectedInvoice.amount.toLocaleString()}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Payment Status Stamp */}
-                            <div className="flex justify-between items-end">
-                                <div className="text-[10px] text-gray-400 max-w-sm">
-                                    * This invoice is a computer-generated official document issued by WZPDCL. It is verified and secure. Any queries regarding billing should be directed to the customer service wing.
+                                {/* Info Block */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-600 mb-6">
+                                    <div>
+                                        <p className="font-bold text-gray-800 text-sm mb-1.5">Billed To:</p>
+                                        <p className="font-semibold text-gray-700">{user?.name || 'Valued Consumer'}</p>
+                                        <p>{user?.email || ''}</p>
+                                        <p className="mt-1 font-semibold text-gray-700">Meter No: {selectedInvoice.meterNumber}</p>
+                                        <p className="text-[10px] text-gray-400 capitalize">Connection Class: {consumerType}</p>
+                                    </div>
+                                    <div className="sm:text-right">
+                                        <p className="font-bold text-gray-800 text-sm mb-1.5">Invoice Details:</p>
+                                        <p><span className="font-semibold">Invoice No:</span> INV-{selectedInvoice._id.slice(-6).toUpperCase()}</p>
+                                        <p><span className="font-semibold">Billing Month:</span> {selectedInvoice.billingMonth || 'Current'}</p>
+                                        <p><span className="font-semibold">Issue Date:</span> {new Date().toLocaleDateString()}</p>
+                                        <p><span className="font-semibold text-red-600">Due Date:</span> {new Date(selectedInvoice.dueDate).toLocaleDateString()}</p>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className={`stamp ${selectedInvoice.status === 'paid' ? 'stamp-paid' : 'stamp-unpaid'}`}>
-                                        {selectedInvoice.status}
+
+                                {/* Meter Readings Block */}
+                                <div className="bg-gray-50 rounded-xl p-3 mb-6 grid grid-cols-3 gap-2 text-center text-xs text-gray-600 border border-gray-100">
+                                    <div>
+                                        <p className="text-gray-400 font-medium">Prev Reading</p>
+                                        <p className="font-mono text-gray-800 font-bold mt-0.5">{prevReading} kWh</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-400 font-medium">Curr Reading</p>
+                                        <p className="font-mono text-gray-800 font-bold mt-0.5">{currReading} kWh</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-emerald-600 font-medium">Total Consumption</p>
+                                        <p className="font-mono text-emerald-800 font-black mt-0.5">{units} Units (kWh)</p>
+                                    </div>
+                                </div>
+
+                                {/* Itemized Table */}
+                                <div className="border border-gray-100 rounded-xl overflow-hidden mb-6">
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="bg-gray-50 font-semibold text-gray-700">
+                                            <tr>
+                                                <th className="p-3">Description of Slab / Charge</th>
+                                                <th className="p-3 text-right">Units × Rate</th>
+                                                <th className="p-3 text-right">Amount (BDT)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 text-gray-600">
+                                            {bBill.slabs.map((slab, i) => (
+                                                <tr key={i} className="hover:bg-gray-50/50">
+                                                    <td className="p-3">
+                                                        <p className="font-semibold text-gray-800">{slab.slabName}</p>
+                                                        <p className="text-[10px] text-gray-400">Stepped energy consumption charge</p>
+                                                    </td>
+                                                    <td className="p-3 text-right font-mono">{slab.units} kWh × ৳{slab.rate.toFixed(2)}</td>
+                                                    <td className="p-3 text-right font-mono">৳{slab.amount.toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                            <tr>
+                                                <td className="p-3">
+                                                    <p className="font-semibold text-gray-800">Demand Charge</p>
+                                                    <p className="text-[10px] text-gray-400">Fixed connection capacity fee</p>
+                                                </td>
+                                                <td className="p-3 text-right font-mono">Fixed</td>
+                                                <td className="p-3 text-right font-mono">৳{bBill.demandCharge.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3">
+                                                    <p className="font-semibold text-gray-800">Service Charge / Meter Rent</p>
+                                                    <p className="text-[10px] text-gray-400">Fixed monthly meter rent and upkeep</p>
+                                                </td>
+                                                <td className="p-3 text-right font-mono">Fixed</td>
+                                                <td className="p-3 text-right font-mono">৳{bBill.serviceCharge.toFixed(2)}</td>
+                                            </tr>
+                                            <tr className="bg-gray-50/50 text-gray-500 font-medium">
+                                                <td className="p-3" colSpan={2}>Sub-Total Energy & Fixed Fees</td>
+                                                <td className="p-3 text-right font-mono">৳{bBill.subTotal.toFixed(2)}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3">
+                                                    <p className="font-semibold text-gray-800">VAT / Govt. Duty (5%)</p>
+                                                    <p className="text-[10px] text-gray-400">Statutory energy sales tax</p>
+                                                </td>
+                                                <td className="p-3 text-right font-mono">5%</td>
+                                                <td className="p-3 text-right font-mono">৳{bBill.vatAmount.toFixed(2)}</td>
+                                            </tr>
+                                            {Math.abs(adjustment) > 0.01 && (
+                                                <tr className="text-gray-500 hover:bg-gray-50/30">
+                                                    <td className="p-3">
+                                                        <p className="font-semibold text-gray-800">
+                                                            {adjustment > 0 ? 'Arrears / System Adjustment' : 'Government Subsidy / Rebate'}
+                                                        </p>
+                                                        <p className="text-[10px] text-gray-400">Rounding or tariff adjustment</p>
+                                                    </td>
+                                                    <td className="p-3 text-right font-mono">System</td>
+                                                    <td className={`p-3 text-right font-mono ${adjustment > 0 ? 'text-gray-800' : 'text-emerald-600'}`}>
+                                                        {adjustment > 0 ? '৳' : '-৳'}{Math.abs(adjustment).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            <tr className="bg-gray-50 font-bold text-gray-800 text-sm">
+                                                <td className="p-3" colSpan={2}>Net Payable Amount (Including VAT)</td>
+                                                <td className="p-3 text-right text-emerald-700 font-mono">৳{selectedInvoice.amount.toLocaleString()}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Payment Status Stamp */}
+                                <div className="flex justify-between items-end">
+                                    <div className="text-[10px] text-gray-400 max-w-sm">
+                                        * This invoice is a computer-generated official document issued by WZPDCL under BERC guidance. It is verified and secure. Any queries regarding billing should be directed to the customer service wing.
+                                    </div>
+                                    <div className="text-right">
+                                        <div className={`stamp ${selectedInvoice.status === 'paid' ? 'stamp-paid' : 'stamp-unpaid'}`}>
+                                            {selectedInvoice.status}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Print / Action Footer */}
-                        <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end gap-3">
-                            <button
-                                onClick={() => { setShowInvoiceModal(false); setSelectedInvoice(null); }}
-                                className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 text-sm"
-                            >
-                                Close
-                            </button>
-                            <button
-                                onClick={handlePrintInvoice}
-                                className="px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-semibold text-sm flex items-center gap-2 shadow-sm shadow-emerald-100"
-                            >
-                                <Printer size={16} />
-                                <span>Print / Download PDF</span>
-                            </button>
+                            {/* Print / Action Footer */}
+                            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => { setShowInvoiceModal(false); setSelectedInvoice(null); }}
+                                    className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 text-sm"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={handlePrintInvoice}
+                                    className="px-5 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 font-semibold text-sm flex items-center gap-2 shadow-sm shadow-emerald-100"
+                                >
+                                    <Printer size={16} />
+                                    <span>Print / Download PDF</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
