@@ -70,7 +70,7 @@ export default function HeroSection() {
                 <div className="flex-1 space-y-6">
                     <h1 className="text-4xl md:text-5xl font-bold leading-tight">
                         Reliable Electricity Distribution <br />
-                        <span className="text-emerald-200">for Kushtia Division</span>
+                        <span className="text-emerald-200">for West Zone of Bangladesh</span>
                     </h1>
                     <p className="text-emerald-50 text-lg max-w-lg">
                         WZPDCL provides efficient power distribution, online bill payment,
