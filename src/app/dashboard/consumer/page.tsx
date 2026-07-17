@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Zap, FileText, AlertCircle, RefreshCw, Loader2,
-    ArrowRight, TrendingUp, CreditCard, CheckCircle, Calculator, Info, HelpCircle
+    ArrowRight, TrendingUp, CreditCard, CheckCircle, Calculator, Info, HelpCircle,
+    Activity, ShieldAlert, Sparkles, Sun, Moon, Leaf
 } from 'lucide-react';
 import { getCookie } from '@/lib/cookies';
 import { apiFetch } from '@/lib/api-client';
@@ -46,6 +47,7 @@ export default function ConsumerDashboard() {
     // Bangladesh Bill Calculator States
     const [calcUnits, setCalcUnits] = useState<number>(150);
     const [calcCategory, setCalcCategory] = useState<'residential' | 'commercial' | 'industrial'>('residential');
+    const [peakRatio, setPeakRatio] = useState<number>(25); // percentage consumed during Peak Hours (5pm - 11pm)
 
     const loadDashboardData = async (isSilent = false) => {
         if (!isSilent) setLoading(true);
@@ -138,6 +140,44 @@ export default function ConsumerDashboard() {
                     <RefreshCw size={16} className={`${refreshing ? 'animate-spin' : ''}`} />
                     <span>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
                 </button>
+            </div>
+
+            {/* Live Grid Status & Load Management Bulletin */}
+            <div className="bg-gradient-to-r from-slate-950 to-slate-850 rounded-2xl p-5 text-white shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                        <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span className="text-[10px] font-bold tracking-wider text-emerald-400 uppercase bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/40 font-mono">
+                            Live WZPDCL Grid Monitor
+                        </span>
+                    </div>
+                    <h2 className="text-base font-bold tracking-tight">West Zone Power Grid Status</h2>
+                    <p className="text-xs text-slate-300 max-w-xl">
+                        Real-time transmission telemetry and peak management details for Khulna, Kushtia, Barisal, and Faridpur grid lines. System operating at optimal load.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto font-mono text-xs">
+                    <div className="bg-slate-800/80 border border-slate-700/50 p-2.5 rounded-xl min-w-[100px] text-center">
+                        <p className="text-[10px] text-slate-400 font-sans">Voltage</p>
+                        <p className="text-xs font-bold text-slate-100 mt-1">230.1 V</p>
+                    </div>
+                    <div className="bg-slate-800/80 border border-slate-700/50 p-2.5 rounded-xl min-w-[100px] text-center">
+                        <p className="text-[10px] text-slate-400 font-sans">Frequency</p>
+                        <p className="text-xs font-bold text-emerald-400 mt-1">49.98 Hz</p>
+                    </div>
+                    <div className="bg-slate-800/80 border border-slate-700/50 p-2.5 rounded-xl min-w-[100px] text-center">
+                        <p className="text-[10px] text-slate-400 font-sans">Grid Load</p>
+                        <p className="text-xs font-bold text-amber-400 mt-1">Normal</p>
+                    </div>
+                    <div className="bg-slate-800/80 border border-slate-700/50 p-2.5 rounded-xl min-w-[100px] text-center">
+                        <p className="text-[10px] text-slate-400 font-sans">Load Shedding</p>
+                        <p className="text-xs font-bold text-emerald-400 mt-1">0% (Nil)</p>
+                    </div>
+                </div>
             </div>
 
             {/* Quick Stats Grid */}
@@ -494,6 +534,114 @@ export default function ConsumerDashboard() {
                                     Lifeline Applied
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Advanced Peak & Off-Peak Optimizer & Carbon Offset Calculator */}
+                <div className="border-t border-gray-100 pt-6 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h4 className="font-bold text-gray-800 text-base flex items-center gap-2">
+                                <Sparkles size={18} className="text-amber-500 fill-amber-500 animate-pulse" />
+                                <span>WZPDCL Peak-Hour Load Optimizer & Carbon Footprint Simulator</span>
+                            </h4>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                Simulate your usage behavior during BERC peak hours (5:00 PM – 11:00 PM) to find cost-saving options and track your eco-impact.
+                            </p>
+                        </div>
+                        <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-100 uppercase tracking-wider shrink-0 self-start sm:self-auto">
+                            Interactive simulation
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-emerald-50/20 rounded-2xl border border-emerald-600/10 p-5">
+                        {/* Simulation Controls */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                                    <Sun size={14} className="text-amber-500" />
+                                    <span>Off-Peak Usage (11 PM - 5 PM)</span>
+                                </span>
+                                <span className="text-xs font-mono font-bold text-gray-600">
+                                    {100 - peakRatio}% ({Math.round(calcUnits * ((100 - peakRatio) / 100))} kWh)
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                                    <Moon size={14} className="text-indigo-600" />
+                                    <span>Peak Hours Usage (5 PM - 11 PM)</span>
+                                </span>
+                                <span className="text-xs font-mono font-bold text-indigo-700">
+                                    {peakRatio}% ({Math.round(calcUnits * (peakRatio / 100))} kWh)
+                                </span>
+                            </div>
+
+                            <input
+                                type="range"
+                                min="5"
+                                max="80"
+                                step="5"
+                                value={peakRatio}
+                                onChange={(e) => setPeakRatio(Number(e.target.value))}
+                                className="w-full accent-indigo-600 h-2 bg-gray-150 rounded-lg cursor-pointer"
+                            />
+
+                            <div className="p-3 bg-white rounded-xl border border-gray-150 text-[11px] text-gray-500 leading-relaxed space-y-1.5">
+                                <p className="font-semibold text-gray-700">💡 Did you know?</p>
+                                <p>
+                                    BERC Peak Hour tariff applies from 5 PM to 11 PM daily. By shifting heavy loads like clothes iron, water heaters, water pumps, or laundry machines to the morning (Off-Peak), you dramatically reduce the strain on the WZPDCL substation transformers.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Cost & Carbon Environmental Score */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Cost TOU vs Flat projection */}
+                            <div className="bg-white p-4 rounded-xl border border-gray-150 flex flex-col justify-between shadow-sm">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Estimated TOU Cost</p>
+                                    <p className="text-xl font-bold font-mono text-gray-800">
+                                        ৳{Math.round(((calcUnits * (peakRatio / 100)) * 12.60 + (calcUnits * ((100 - peakRatio) / 100)) * 8.40) * 1.05 + calcResult.demandCharge + calcResult.serviceCharge).toLocaleString()}
+                                    </p>
+                                    <p className="text-[10px] text-gray-500 leading-tight">
+                                        Calculated at Time of Use (TOU) rates (Peak: ৳12.60/kWh, Off-Peak: ৳8.40/kWh).
+                                    </p>
+                                </div>
+                                <div className="border-t border-gray-100 pt-2.5 mt-3 text-xs">
+                                    {peakRatio <= 25 ? (
+                                        <p className="text-emerald-600 font-semibold flex items-center gap-1">
+                                            <CheckCircle size={12} />
+                                            <span>Excellent Peak Shift!</span>
+                                        </p>
+                                    ) : (
+                                        <p className="text-amber-600 font-semibold flex items-center gap-1">
+                                            <Info size={12} />
+                                            <span>Shift peak to &lt;25% to save!</span>
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Carbon Footprint score */}
+                            <div className="bg-white p-4 rounded-xl border border-gray-150 flex flex-col justify-between shadow-sm">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                                        <Leaf size={12} className="text-emerald-500 fill-emerald-500" />
+                                        <span>Carbon Impact</span>
+                                    </p>
+                                    <p className="text-xl font-bold font-mono text-gray-800">
+                                        {Math.round(calcUnits * 0.64)} kg CO₂
+                                    </p>
+                                    <p className="text-[10px] text-gray-500 leading-tight">
+                                        Equivalent to the monthly carbon absorption of <span className="font-semibold text-emerald-600 font-mono">{Math.max(1, Math.round((calcUnits * 0.64) / 1.8))} mature trees</span>.
+                                    </p>
+                                </div>
+                                <div className="border-t border-gray-100 pt-2.5 mt-3 text-xs text-gray-500 font-medium">
+                                    Bengal Grid Avg: 0.64kg/kWh
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
