@@ -61,6 +61,7 @@ const menuConfig: Record<string, { href: string; label: string; icon: React.Reac
     admin: [
         { href: '/dashboard/admin', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
         { href: '/dashboard/admin/users', label: 'User Management', icon: <Users size={20} /> },
+        { href: '/dashboard/admin/all-consumers', label: 'All Consumers', icon: <Users size={20} /> },
         { href: '/dashboard/admin/settings', label: 'Rate Settings', icon: <Settings size={20} /> },
         { href: '/dashboard/admin/profile', label: 'Profile', icon: <User size={20} /> },
         { href: '/', label: 'Homepage', icon: <Home size={20} /> },
