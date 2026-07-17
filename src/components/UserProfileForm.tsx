@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-    User, Mail, Phone, MapPin, Calendar, Hash, Lock, 
-    Eye, EyeOff, Loader2, CheckCircle, AlertCircle, 
-    Shield, ShieldCheck, Activity, Award, UserCheck, 
-    FileSpreadsheet, Sparkles 
+import {
+    User, Mail, Phone, MapPin, Calendar, Hash, Lock,
+    Eye, EyeOff, Loader2, CheckCircle, AlertCircle,
+    Shield, ShieldCheck, Activity, Award, UserCheck,
+    FileSpreadsheet, Sparkles, Edit, Camera, Upload
 } from 'lucide-react';
-import { getCookie } from '@/lib/cookies';
+import { getCookie, setCookie } from '@/lib/cookies';
 import { authClient } from '@/lib/auth-client';
 
 interface UserProfileFormProps {
@@ -20,6 +20,11 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
     const [saving, setSaving] = useState(false);
     const [passwordChanging, setPasswordChanging] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    // Editing toggles
+    const [isEditing, setIsEditing] = useState(false);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Profile fields
     const [name, setName] = useState('');
@@ -105,7 +110,7 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/profile`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ name, mobile, address, dob, nid }),
+                body: JSON.stringify({ name, mobile, address, dob, nid, image: profile?.image }),
             });
 
             const contentType = res.headers.get('content-type');
@@ -115,14 +120,115 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
 
             await res.json();
             setMessage({ type: 'success', text: 'Your profile information has been successfully updated!' });
-            
+
             // Sync local profile state as well
             setProfile((prev: any) => ({ ...prev, name, mobile, address, dob, nid }));
+
+            // Sync cookie
+            const userStr = getCookie('user');
+            if (userStr) {
+                try {
+                    const parsed = JSON.parse(userStr);
+                    parsed.name = name;
+                    setCookie('user', JSON.stringify(parsed), 7);
+                } catch (err) {
+                    console.error('Error parsing user cookie:', err);
+                }
+            }
+
+            // Dispatch custom event to notify layout (topbar, sidebar)
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('user-profile-updated'));
+            }
+
+            setIsEditing(false);
         } catch (err: any) {
             console.error('Update profile error:', err);
             setMessage({ type: 'error', text: err.message || 'Update failed' });
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingImage(true);
+        setMessage(null);
+
+        try {
+            // 1. Upload to ImgBB
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const imgbbKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+            if (!imgbbKey) {
+                throw new Error('ImgBB API key is not configured in environment variables.');
+            }
+
+            const imgbbRes = await fetch(`https://api.imgbb.com/1/upload?key=${imgbbKey}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!imgbbRes.ok) {
+                throw new Error('Failed to upload image to ImgBB.');
+            }
+
+            const imgbbData = await imgbbRes.json();
+            const imageUrl = imgbbData?.data?.url;
+
+            if (!imageUrl) {
+                throw new Error('Did not receive image URL from ImgBB.');
+            }
+
+            // 2. Save image URL to backend
+            let token = getCookie('token');
+            if (!token) {
+                const sessionData = await authClient.getSession();
+                token = (sessionData?.data?.session as any)?.accessToken || (sessionData?.data as any)?.accessToken;
+            }
+
+            if (!token) {
+                throw new Error('Session expired. Please sign in again.');
+            }
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ name, mobile, address, dob, nid, image: imageUrl }),
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to update profile photo on server.');
+            }
+
+            // Sync state
+            setProfile((prev: any) => ({ ...prev, image: imageUrl }));
+
+            // Sync cookie
+            const userStr = getCookie('user');
+            if (userStr) {
+                try {
+                    const parsed = JSON.parse(userStr);
+                    parsed.image = imageUrl;
+                    setCookie('user', JSON.stringify(parsed), 7);
+                } catch (err) {
+                    console.error('Error parsing user cookie:', err);
+                }
+            }
+
+            setMessage({ type: 'success', text: 'Profile picture updated successfully!' });
+
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('user-profile-updated'));
+            }
+        } catch (err: any) {
+            console.error('Image upload error:', err);
+            setMessage({ type: 'error', text: err.message || 'Profile picture upload failed.' });
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -169,6 +275,7 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
+            setIsChangingPassword(false);
         } catch (err: any) {
             console.error('Password change error:', err);
             setMessage({ type: 'error', text: err.message || 'Password update failed' });
@@ -244,11 +351,10 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
 
             {/* Notification Banner */}
             {message && (
-                <div className={`p-4 rounded-xl flex items-start gap-3 border shadow-sm transition-all duration-300 ${
-                    message.type === 'success' 
-                        ? 'bg-emerald-50/80 border-emerald-200 text-emerald-850' 
+                <div className={`p-4 rounded-xl flex items-start gap-3 border shadow-sm transition-all duration-300 ${message.type === 'success'
+                        ? 'bg-emerald-50/80 border-emerald-200 text-emerald-850'
                         : 'bg-rose-50/80 border-rose-200 text-rose-850'
-                }`}>
+                    }`}>
                     {message.type === 'success' ? (
                         <CheckCircle size={20} className="text-emerald-600 mt-0.5 shrink-0" />
                     ) : (
@@ -257,8 +363,8 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                     <div className="flex-1 text-xs sm:text-sm font-medium">
                         {message.text}
                     </div>
-                    <button 
-                        onClick={() => setMessage(null)} 
+                    <button
+                        onClick={() => setMessage(null)}
                         className="ml-auto text-slate-400 hover:text-slate-600 font-bold transition-colors"
                     >
                         ✕
@@ -269,12 +375,34 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
             {/* Premium Profile Banner Card */}
             <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[200px] bg-emerald-500/5 blur-[80px] rounded-full pointer-events-none" />
-                
+
                 <div className="flex flex-col sm:flex-row items-center gap-5 relative z-10">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-2xl font-extrabold shadow-inner border-2 border-slate-700 uppercase tracking-wide">
-                        {getInitials(name || profile?.email)}
+                    <div className="relative group">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-2xl font-extrabold shadow-inner border-2 border-slate-700 overflow-hidden relative">
+                            {profile?.image ? (
+                                <img src={profile.image} alt={name} className="w-full h-full object-cover" />
+                            ) : (
+                                getInitials(name || profile?.email)
+                            )}
+                            {uploadingImage && (
+                                <div className="absolute inset-0 bg-slate-950/70 flex items-center justify-center">
+                                    <Loader2 size={20} className="animate-spin text-emerald-400" />
+                                </div>
+                            )}
+                        </div>
+
+                        <label className="absolute -bottom-1 -right-1 bg-emerald-600 hover:bg-emerald-700 text-white p-1.5 rounded-full shadow-md cursor-pointer transition-all hover:scale-110 flex items-center justify-center border border-slate-800" title="Change Profile Picture">
+                            <Camera size={14} />
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                disabled={uploadingImage}
+                            />
+                        </label>
                     </div>
-                    
+
                     <div className="space-y-1 text-center sm:text-left">
                         <div className="flex flex-col sm:flex-row items-center gap-2">
                             <h2 className="text-xl font-bold tracking-tight text-white">{name || 'Unnamed User'}</h2>
@@ -304,14 +432,14 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                         <span className="font-bold text-emerald-400 font-mono">{completionPercent}%</span>
                     </div>
                     <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
-                        <div 
-                            className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500" 
+                        <div
+                            className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
                             style={{ width: `${completionPercent}%` }}
                         />
                     </div>
                     <p className="text-[10px] text-slate-400 leading-tight">
-                        {completionPercent === 100 
-                            ? 'Excellent! Your administrative registry parameters are complete.' 
+                        {completionPercent === 100
+                            ? 'Excellent! Your administrative registry parameters are complete.'
                             : 'Complete all fields on the left to reach 100% data integrity.'}
                     </p>
                 </div>
@@ -327,7 +455,18 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <h3 className="font-bold text-slate-800 text-sm sm:text-base">Personal Information</h3>
                                 <p className="text-[11px] text-slate-500">Official registry attributes used for WZPDCL bills & meter requests.</p>
                             </div>
-                            <span className="text-[10px] font-mono font-bold text-slate-400">Section 01</span>
+                            {!isEditing ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditing(true)}
+                                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
+                                >
+                                    <Edit size={14} />
+                                    <span>Edit Info</span>
+                                </button>
+                            ) : (
+                                <span className="text-[10px] font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100 animate-pulse">Editing Mode</span>
+                            )}
                         </div>
 
                         <form id="profile-form" onSubmit={handleProfileUpdate} className="p-6 space-y-5">
@@ -336,13 +475,17 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <div className="space-y-1">
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Full Name</label>
                                     <div className="relative">
-                                        <User size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                        <input 
-                                            type="text" 
-                                            value={name} 
-                                            onChange={e => setName(e.target.value)} 
-                                            className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800 placeholder-slate-400" 
-                                            required 
+                                        <User size={16} className={`absolute left-3.5 top-3.5 ${isEditing ? 'text-slate-400' : 'text-slate-300'}`} />
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={e => setName(e.target.value)}
+                                            disabled={!isEditing}
+                                            className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all text-xs sm:text-sm font-medium ${isEditing
+                                                    ? 'border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-inner'
+                                                    : 'border-slate-100 bg-slate-50/60 text-slate-500 cursor-not-allowed'
+                                                }`}
+                                            required
                                         />
                                     </div>
                                 </div>
@@ -356,12 +499,12 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                         </span>
                                     </div>
                                     <div className="relative">
-                                        <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                        <input 
-                                            type="email" 
-                                            value={profile?.email || ''} 
-                                            className="w-full pl-10 pr-4 py-3 border border-slate-150 rounded-xl bg-slate-50 text-slate-400 cursor-not-allowed text-xs sm:text-sm font-medium" 
-                                            readOnly 
+                                        <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-300" />
+                                        <input
+                                            type="email"
+                                            value={profile?.email || ''}
+                                            className="w-full pl-10 pr-4 py-3 border border-slate-100 rounded-xl bg-slate-50/60 text-slate-400 cursor-not-allowed text-xs sm:text-sm font-medium"
+                                            readOnly
                                         />
                                     </div>
                                 </div>
@@ -370,13 +513,17 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <div className="space-y-1">
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Mobile Number</label>
                                     <div className="relative">
-                                        <Phone size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                        <input 
-                                            type="tel" 
-                                            value={mobile} 
-                                            onChange={e => setMobile(e.target.value)} 
+                                        <Phone size={16} className={`absolute left-3.5 top-3.5 ${isEditing ? 'text-slate-400' : 'text-slate-300'}`} />
+                                        <input
+                                            type="tel"
+                                            value={mobile}
+                                            onChange={e => setMobile(e.target.value)}
+                                            disabled={!isEditing}
                                             placeholder="+880 1XXX XXXXXX"
-                                            className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800" 
+                                            className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all text-xs sm:text-sm font-medium ${isEditing
+                                                    ? 'border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-inner'
+                                                    : 'border-slate-100 bg-slate-50/60 text-slate-500 cursor-not-allowed'
+                                                }`}
                                         />
                                     </div>
                                 </div>
@@ -385,12 +532,16 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <div className="space-y-1">
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Date of Birth</label>
                                     <div className="relative">
-                                        <Calendar size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                        <input 
-                                            type="date" 
-                                            value={dob} 
-                                            onChange={e => setDob(e.target.value)} 
-                                            className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800" 
+                                        <Calendar size={16} className={`absolute left-3.5 top-3.5 ${isEditing ? 'text-slate-400' : 'text-slate-300'}`} />
+                                        <input
+                                            type="date"
+                                            value={dob}
+                                            onChange={e => setDob(e.target.value)}
+                                            disabled={!isEditing}
+                                            className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all text-xs sm:text-sm font-medium ${isEditing
+                                                    ? 'border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-inner'
+                                                    : 'border-slate-100 bg-slate-50/60 text-slate-500 cursor-not-allowed'
+                                                }`}
                                         />
                                     </div>
                                 </div>
@@ -399,13 +550,17 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <div className="space-y-1 sm:col-span-2">
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">NID / Smart Card Number</label>
                                     <div className="relative">
-                                        <Hash size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                        <input 
-                                            type="text" 
-                                            value={nid} 
-                                            onChange={e => setNid(e.target.value)} 
+                                        <Hash size={16} className={`absolute left-3.5 top-3.5 ${isEditing ? 'text-slate-400' : 'text-slate-300'}`} />
+                                        <input
+                                            type="text"
+                                            value={nid}
+                                            onChange={e => setNid(e.target.value)}
+                                            disabled={!isEditing}
                                             placeholder="National Identification Code"
-                                            className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800" 
+                                            className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all text-xs sm:text-sm font-medium ${isEditing
+                                                    ? 'border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-inner'
+                                                    : 'border-slate-100 bg-slate-50/60 text-slate-500 cursor-not-allowed'
+                                                }`}
                                         />
                                     </div>
                                 </div>
@@ -414,13 +569,17 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <div className="space-y-1 sm:col-span-2">
                                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Mailing / Delivery Address</label>
                                     <div className="relative">
-                                        <MapPin size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                        <textarea 
-                                            value={address} 
-                                            onChange={e => setAddress(e.target.value)} 
-                                            rows={3} 
+                                        <MapPin size={16} className={`absolute left-3.5 top-3.5 ${isEditing ? 'text-slate-400' : 'text-slate-300'}`} />
+                                        <textarea
+                                            value={address}
+                                            onChange={e => setAddress(e.target.value)}
+                                            disabled={!isEditing}
+                                            rows={3}
                                             placeholder="House, Street, Area/Holding, Post Office, District"
-                                            className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800 resize-none" 
+                                            className={`w-full pl-10 pr-4 py-3 border rounded-xl transition-all text-xs sm:text-sm font-medium resize-none ${isEditing
+                                                    ? 'border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-inner'
+                                                    : 'border-slate-100 bg-slate-50/60 text-slate-500 cursor-not-allowed'
+                                                }`}
                                         />
                                     </div>
                                 </div>
@@ -428,17 +587,34 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                         </form>
                     </div>
 
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-                        <button 
-                            type="submit" 
-                            form="profile-form"
-                            disabled={saving} 
-                            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-98"
-                        >
-                            {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                            {saving ? 'Saving...' : 'Update Details'}
-                        </button>
-                    </div>
+                    {isEditing && (
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 animate-fadeIn">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setName(profile?.name || '');
+                                    setMobile(profile?.mobile || '');
+                                    setAddress(profile?.address || '');
+                                    setDob(profile?.dob ? profile?.dob.split('T')[0] : '');
+                                    setNid(profile?.nid || '');
+                                    setIsEditing(false);
+                                    setMessage(null);
+                                }}
+                                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl transition-all active:scale-95"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                form="profile-form"
+                                disabled={saving}
+                                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center gap-2 shadow-sm transition-all duration-150 active:scale-98"
+                            >
+                                {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                                {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Change Password (Right Smaller Bento Box) */}
@@ -449,89 +625,125 @@ export default function UserProfileForm({ title }: UserProfileFormProps) {
                                 <h3 className="font-bold text-slate-800 text-sm sm:text-base">Security Settings</h3>
                                 <p className="text-[11px] text-slate-500">Regularly update credentials to maintain account security.</p>
                             </div>
-                            <span className="text-[10px] font-mono font-bold text-slate-400">Section 02</span>
                         </div>
 
-                        <form id="password-form" onSubmit={handlePasswordChange} className="p-6 space-y-4">
-                            {/* Current Password */}
-                            <div className="space-y-1">
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Current Password</label>
-                                <div className="relative">
-                                    <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                    <input 
-                                        type={showCurrentPassword ? 'text' : 'password'} 
-                                        value={currentPassword} 
-                                        onChange={e => setCurrentPassword(e.target.value)} 
-                                        className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800" 
-                                        required 
-                                    />
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)} 
-                                        className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
-                                    >
-                                        {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+                        {!isChangingPassword ? (
+                            <div className="p-6 flex flex-col items-center justify-center text-center space-y-4 min-h-[250px]">
+                                <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 text-slate-400">
+                                    <Lock size={20} />
                                 </div>
+                                <div className="space-y-1">
+                                    <h4 className="font-semibold text-slate-850 text-xs sm:text-sm">Password Status: Encrypted</h4>
+                                    <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">
+                                        Your account is protected. Change your password periodically to prevent unauthorized access.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsChangingPassword(true)}
+                                    className="px-4 py-2.5 bg-slate-800 hover:bg-slate-950 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all duration-150 active:scale-95"
+                                >
+                                    <Lock size={14} />
+                                    <span>Change Password</span>
+                                </button>
                             </div>
+                        ) : (
+                            <form id="password-form" onSubmit={handlePasswordChange} className="p-6 space-y-4 animate-fadeIn">
+                                {/* Current Password */}
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Current Password</label>
+                                    <div className="relative">
+                                        <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                        <input
+                                            type={showCurrentPassword ? 'text' : 'password'}
+                                            value={currentPassword}
+                                            onChange={e => setCurrentPassword(e.target.value)}
+                                            className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800 shadow-inner"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                            className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
+                                        >
+                                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
+                                </div>
 
-                            {/* New Password */}
-                            <div className="space-y-1">
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">New Password</label>
-                                <div className="relative">
-                                    <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                    <input 
-                                        type={showNewPassword ? 'text' : 'password'} 
-                                        value={newPassword} 
-                                        onChange={e => setNewPassword(e.target.value)} 
-                                        className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800" 
-                                        required 
-                                    />
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setShowNewPassword(!showNewPassword)} 
-                                        className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
-                                    >
-                                        {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+                                {/* New Password */}
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">New Password</label>
+                                    <div className="relative">
+                                        <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                        <input
+                                            type={showNewPassword ? 'text' : 'password'}
+                                            value={newPassword}
+                                            onChange={e => setNewPassword(e.target.value)}
+                                            className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800 shadow-inner"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowNewPassword(!showNewPassword)}
+                                            className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
+                                        >
+                                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Confirm Password */}
-                            <div className="space-y-1">
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Confirm New Password</label>
-                                <div className="relative">
-                                    <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                                    <input 
-                                        type={showConfirmPassword ? 'text' : 'password'} 
-                                        value={confirmPassword} 
-                                        onChange={e => setConfirmPassword(e.target.value)} 
-                                        className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800" 
-                                        required 
-                                    />
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
-                                        className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
-                                    >
-                                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                    </button>
+                                {/* Confirm Password */}
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Confirm New Password</label>
+                                    <div className="relative">
+                                        <Lock size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                        <input
+                                            type={showConfirmPassword ? 'text' : 'password'}
+                                            value={confirmPassword}
+                                            onChange={e => setConfirmPassword(e.target.value)}
+                                            className="w-full pl-10 pr-12 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-xs sm:text-sm font-medium text-slate-800 shadow-inner"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
+                                        >
+                                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        </form>
+                            </form>
+                        )}
                     </div>
 
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
-                        <button 
-                            type="submit" 
-                            form="password-form"
-                            disabled={passwordChanging} 
-                            className="w-full px-4 py-2.5 bg-slate-800 hover:bg-slate-950 text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all duration-150 active:scale-98 shadow-sm"
-                        >
-                            {passwordChanging ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
-                            {passwordChanging ? 'Changing Password...' : 'Save New Password'}
-                        </button>
-                    </div>
+                    {isChangingPassword && (
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCurrentPassword('');
+                                    setNewPassword('');
+                                    setConfirmPassword('');
+                                    setIsChangingPassword(false);
+                                    setMessage(null);
+                                }}
+                                className="w-1/3 px-3 py-2.5 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl transition-all active:scale-95 text-center"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                form="password-form"
+                                disabled={passwordChanging}
+                                className="w-2/3 px-4 py-2.5 bg-slate-800 hover:bg-slate-950 text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-2 transition-all duration-150 active:scale-98 shadow-sm"
+                            >
+                                {passwordChanging ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                                {passwordChanging ? 'Changing...' : 'Save Password'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

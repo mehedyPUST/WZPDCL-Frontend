@@ -17,28 +17,40 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     const [user, setUser] = useState<any>(null); const [loading, setLoading] = useState(true); const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
-        const token = getCookie('token'); const userStr = getCookie('user');
-        if (!token || !userStr) { router.push('/login'); return; }
-        let parsedUser: any;
-        try { parsedUser = JSON.parse(userStr); } catch { router.push('/login'); return; }
+        const syncUser = () => {
+            const token = getCookie('token'); const userStr = getCookie('user');
+            if (!token || !userStr) { router.push('/login'); return; }
+            let parsedUser: any;
+            try { parsedUser = JSON.parse(userStr); } catch { router.push('/login'); return; }
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-            .then(res => res.json())
-            .then(freshUser => {
-                if (freshUser?.role) { parsedUser.role = freshUser.role; setCookie('user', JSON.stringify(parsedUser), 7); }
-                const bp = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
-                const r = rolePathMap[bp]; const home = Object.keys(rolePathMap).includes(bp);
-                if (home && r && parsedUser.role !== r) { router.replace('/access-denied'); return; }
-                setUser(parsedUser);
-            })
-            .catch(() => {
-                const bp = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
-                const r = rolePathMap[bp]; const home = Object.keys(rolePathMap).includes(bp);
-                if (home && r && parsedUser.role !== r) { router.replace('/access-denied'); return; }
-                setUser(parsedUser);
-            })
-            .finally(() => setLoading(false));
-    }, [pathname]);
+            fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => res.json())
+                .then(freshUser => {
+                    if (freshUser?.role) { parsedUser.role = freshUser.role; }
+                    if (freshUser?.name) { parsedUser.name = freshUser.name; }
+                    if (freshUser?.image !== undefined) { parsedUser.image = freshUser.image; }
+                    setCookie('user', JSON.stringify(parsedUser), 7);
+                    const bp = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
+                    const r = rolePathMap[bp]; const home = Object.keys(rolePathMap).includes(bp);
+                    if (home && r && parsedUser.role !== r) { router.replace('/access-denied'); return; }
+                    setUser(parsedUser);
+                })
+                .catch(() => {
+                    const bp = '/' + (pathname?.split('/').slice(1, 3).join('/') || '');
+                    const r = rolePathMap[bp]; const home = Object.keys(rolePathMap).includes(bp);
+                    if (home && r && parsedUser.role !== r) { router.replace('/access-denied'); return; }
+                    setUser(parsedUser);
+                })
+                .finally(() => setLoading(false));
+        };
+
+        syncUser();
+
+        window.addEventListener('user-profile-updated', syncUser);
+        return () => {
+            window.removeEventListener('user-profile-updated', syncUser);
+        };
+    }, [pathname, router]);
 
     if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full" /></div>;
     if (!user) return null;
