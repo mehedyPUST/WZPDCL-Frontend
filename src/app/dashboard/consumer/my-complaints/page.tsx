@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
     AlertCircle, Plus, Search, Clock, CheckCircle,
     Eye, ChevronLeft, ChevronRight, RefreshCw,
-    FileText, Loader2, X, Send, Zap, Package
+    FileText, Loader2, X, Send, Zap, Package, Star
 } from 'lucide-react';
 import { getCookie } from '@/lib/cookies';
 import Modal from '@/components/ui/Modal';
@@ -54,6 +54,13 @@ export default function ConsumerMyComplaintsPage() {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
 
+    // ---------- review states ----------
+    const [rating, setRating] = useState(5);
+    const [reviewText, setReviewText] = useState('');
+    const [submittingReview, setSubmittingReview] = useState(false);
+    const [reviewError, setReviewError] = useState<string | null>(null);
+    const [ratedComplaints, setRatedComplaints] = useState<Record<string, boolean>>({});
+
     // ---------- new complaint form ----------
     const [newMeterNumber, setNewMeterNumber] = useState('');
     const [newDescription, setNewDescription] = useState('');
@@ -95,6 +102,18 @@ export default function ConsumerMyComplaintsPage() {
     };
 
     useEffect(() => { fetchData(); }, []);
+
+    useEffect(() => {
+        const loaded: Record<string, boolean> = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('wzpdcl_rated_')) {
+                const id = key.replace('wzpdcl_rated_', '');
+                loaded[id] = true;
+            }
+        }
+        setRatedComplaints(loaded);
+    }, []);
 
     // pre‑select first claimed meter when opening new complaint modal
     useEffect(() => {
@@ -155,6 +174,39 @@ export default function ConsumerMyComplaintsPage() {
             setFormError(err.message);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleReviewSubmit = async (e: React.FormEvent, complaintId: string) => {
+        e.preventDefault();
+        const token = getCookie('token');
+        if (!token) { setReviewError('Not authenticated'); return; }
+        setSubmittingReview(true);
+        setReviewError(null);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/submit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    complaintId,
+                    rating,
+                    text: reviewText
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to submit review');
+
+            localStorage.setItem(`wzpdcl_rated_${complaintId}`, 'true');
+            setRatedComplaints(prev => ({ ...prev, [complaintId]: true }));
+            setReviewText('');
+            setRating(5);
+        } catch (err: any) {
+            setReviewError(err.message);
+        } finally {
+            setSubmittingReview(false);
         }
     };
 
@@ -432,6 +484,61 @@ export default function ConsumerMyComplaintsPage() {
                                 <p className="text-gray-500 mb-1">Description:</p>
                                 <p className="text-gray-800">{selectedComplaint.description}</p>
                             </div>
+                            {selectedComplaint.status === 'resolved' && (
+                                <div className="mt-6 border-t pt-4">
+                                    <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                                        <Star size={18} className="text-amber-500 fill-amber-500 animate-pulse" />
+                                        <span>Rate our Service</span>
+                                    </h4>
+                                    {ratedComplaints[selectedComplaint._id] ? (
+                                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-sm flex items-center gap-2">
+                                            <CheckCircle size={16} className="text-emerald-600" />
+                                            <span>You have successfully submitted your review for this resolved complaint. Thank you!</span>
+                                        </div>
+                                    ) : (
+                                        <form onSubmit={(e) => handleReviewSubmit(e, selectedComplaint._id)} className="space-y-3">
+                                            {reviewError && (
+                                                <div className="p-2.5 bg-red-50 text-red-600 rounded-lg text-xs border border-red-200">
+                                                    {reviewError}
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <button
+                                                        key={star}
+                                                        type="button"
+                                                        onClick={() => setRating(star)}
+                                                        className="p-1 hover:scale-110 transition-transform"
+                                                    >
+                                                        <Star
+                                                            size={24}
+                                                            className={star <= rating ? "text-amber-400 fill-amber-400" : "text-gray-300"}
+                                                        />
+                                                    </button>
+                                                ))}
+                                                <span className="text-sm text-gray-500 ml-2">({rating} / 5 stars)</span>
+                                            </div>
+                                            <div>
+                                                <textarea
+                                                    value={reviewText}
+                                                    onChange={(e) => setReviewText(e.target.value)}
+                                                    placeholder="Write your feedback here (optional)..."
+                                                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-gray-50 focus:bg-white transition-colors"
+                                                    rows={3}
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={submittingReview}
+                                                className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {submittingReview ? <Loader2 size={16} className="animate-spin" /> : null}
+                                                Submit Review
+                                            </button>
+                                        </form>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div className="mt-6 flex justify-end">
                             <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>

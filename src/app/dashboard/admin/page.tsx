@@ -5,7 +5,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { getCookie } from '@/lib/cookies';
 import {
     Loader2, Users, Zap, FileText, AlertTriangle,
-    Search, RefreshCw, Shield, Edit, Trash2, UserCog
+    Search, RefreshCw, Shield, Edit, Trash2, UserCog,
+    Star, MessageSquare, EyeOff
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 
@@ -14,6 +15,16 @@ interface User {
     name: string;
     email: string;
     role: string;
+    createdAt: string;
+}
+
+interface Review {
+    _id: string;
+    userId: string;
+    complaintId: string;
+    rating: number;
+    text: string;
+    visible: boolean;
     createdAt: string;
 }
 
@@ -31,6 +42,53 @@ export default function AdminDashboard() {
     const [actionLoading, setActionLoading] = useState(false);
     const [stats, setStats] = useState({ totalUsers: 0, totalConnections: 0, totalBills: 0, totalComplaints: 0 });
     const [adminId, setAdminId] = useState<string | null>(null); // current admin's user ID
+
+    // ---------- active tab & review states ----------
+    const [activeTab, setActiveTab] = useState<'users' | 'reviews'>('users');
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [loadingReviews, setLoadingReviews] = useState(false);
+    const [hidingReviewId, setHidingReviewId] = useState<string | null>(null);
+
+    // Fetch public reviews (moderation)
+    const fetchReviews = useCallback(async () => {
+        setLoadingReviews(true);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/public`);
+            const data = await res.json();
+            setReviews(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Failed to fetch reviews:', err);
+        } finally {
+            setLoadingReviews(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === 'reviews') {
+            fetchReviews();
+        }
+    }, [activeTab, fetchReviews]);
+
+    // Admin hide review handler
+    const handleHideReview = async (reviewId: string) => {
+        if (!confirm('Are you sure you want to hide this review from the public homepage?')) return;
+        const token = getCookie('token');
+        if (!token) return alert('Not authenticated');
+        setHidingReviewId(reviewId);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/reviews/hide/${reviewId}`, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to hide review');
+            fetchReviews();
+        } catch (err: any) {
+            alert(err.message);
+        } finally {
+            setHidingReviewId(null);
+        }
+    };
 
     // Fetch admin's own ID
     useEffect(() => {
@@ -173,90 +231,182 @@ export default function AdminDashboard() {
                 <StatCard icon={<AlertTriangle size={24} />} label="Complaints" value={stats.totalComplaints} color="bg-red-100 text-red-600" />
             </div>
 
-            {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm border p-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by name or email..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-emerald-500"
-                        />
-                    </div>
-                    <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="px-4 py-3 border rounded-xl bg-gray-50 text-sm">
-                        <option value="all">All Roles</option>
-                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                    <button onClick={fetchData} className="p-3 border rounded-xl hover:bg-emerald-50"><RefreshCw size={18} /></button>
-                </div>
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100">
+                <button
+                    onClick={() => setActiveTab('users')}
+                    className={`pb-3 px-6 font-medium text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'users' ? 'border-emerald-600 text-emerald-700 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    <Users size={16} />
+                    <span>User Management</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('reviews')}
+                    className={`pb-3 px-6 font-medium text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'reviews' ? 'border-emerald-600 text-emerald-700 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    <MessageSquare size={16} />
+                    <span>Consumer Reviews Moderation</span>
+                    {reviews.length > 0 && (
+                        <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-0.5 rounded-full font-bold">
+                            {reviews.length}
+                        </span>
+                    )}
+                </button>
             </div>
 
-            {/* Users Table */}
-            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gradient-to-r from-gray-50 to-white border-b">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredUsers.length === 0 ? (
-                                <tr><td colSpan={4} className="px-6 py-20 text-center text-gray-400">No users found</td></tr>
-                            ) : (
-                                filteredUsers.map((user, idx) => {
-                                    const isCurrentAdmin = adminId && user._id === adminId;
-                                    return (
-                                        <tr key={user._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                        <span className="text-sm font-semibold text-emerald-700">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium">{user.name}</p>
-                                                        <p className="text-xs text-gray-400">{user.email}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getRoleColor(user.role)}`}>{user.role}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('en-BD', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex justify-center gap-2">
-                                                    {isCurrentAdmin ? (
-                                                        <span className="text-xs text-gray-400 italic px-2">You</span>
-                                                    ) : (
-                                                        <>
-                                                            <button
-                                                                onClick={() => { setSelectedUser(user); setEditRole(user.role); setShowEditModal(true); }}
-                                                                className="p-2 rounded-lg hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors"
-                                                                title="Edit role"
-                                                            ><Edit size={16} /></button>
-                                                            <button
-                                                                onClick={() => handleDeleteUser(user._id)}
-                                                                className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
-                                                                title="Delete user"
-                                                            ><Trash2 size={16} /></button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
+            {activeTab === 'users' ? (
+                <>
+                    {/* Filters */}
+                    <div className="bg-white rounded-xl shadow-sm border p-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="relative flex-1">
+                                <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name or email..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-3 border rounded-xl bg-gray-50 focus:ring-2 focus:ring-emerald-500"
+                                />
+                            </div>
+                            <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} className="px-4 py-3 border rounded-xl bg-gray-50 text-sm">
+                                <option value="all">All Roles</option>
+                                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
+                            <button onClick={fetchData} className="p-3 border rounded-xl hover:bg-emerald-50"><RefreshCw size={18} /></button>
+                        </div>
+                    </div>
+
+                    {/* Users Table */}
+                    <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gradient-to-r from-gray-50 to-white border-b">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {filteredUsers.length === 0 ? (
+                                        <tr><td colSpan={4} className="px-6 py-20 text-center text-gray-400">No users found</td></tr>
+                                    ) : (
+                                        filteredUsers.map((user, idx) => {
+                                            const isCurrentAdmin = adminId && user._id === adminId;
+                                            return (
+                                                <tr key={user._id} className={`hover:bg-emerald-50/50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                                <span className="text-sm font-semibold text-emerald-700">{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium">{user.name}</p>
+                                                                <p className="text-xs text-gray-400">{user.email}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getRoleColor(user.role)}`}>{user.role}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-gray-500 text-xs">{new Date(user.createdAt).toLocaleDateString('en-BD', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex justify-center gap-2">
+                                                            {isCurrentAdmin ? (
+                                                                <span className="text-xs text-gray-400 italic px-2">You</span>
+                                                            ) : (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => { setSelectedUser(user); setEditRole(user.role); setShowEditModal(true); }}
+                                                                        className="p-2 rounded-lg hover:bg-emerald-100 text-gray-500 hover:text-emerald-600 transition-colors"
+                                                                        title="Edit role"
+                                                                    ><Edit size={16} /></button>
+                                                                    <button
+                                                                        onClick={() => handleDeleteUser(user._id)}
+                                                                        className="p-2 rounded-lg hover:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
+                                                                        title="Delete user"
+                                                                    ><Trash2 size={16} /></button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                <div className="space-y-4">
+                    <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-between items-center">
+                        <div>
+                            <h3 className="font-semibold text-gray-800">Consumer Feedback Reviews</h3>
+                            <p className="text-xs text-gray-500">Only visible/approved reviews are listed here. Hidden reviews are filtered automatically.</p>
+                        </div>
+                        <button onClick={fetchReviews} className="p-2 border rounded-lg hover:bg-gray-50 flex items-center gap-1.5 text-sm font-medium">
+                            <RefreshCw size={14} className={loadingReviews ? 'animate-spin' : ''} />
+                            <span>Reload</span>
+                        </button>
+                    </div>
+
+                    {loadingReviews ? (
+                        <div className="flex justify-center py-16">
+                            <Loader2 className="animate-spin text-emerald-600" size={36} />
+                        </div>
+                    ) : reviews.length === 0 ? (
+                        <div className="bg-white rounded-xl border p-12 text-center text-gray-400">
+                            No public reviews have been submitted yet, or all reviews have been hidden.
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {reviews.map((rev) => (
+                                <div key={rev._id} className="bg-white rounded-xl shadow-sm border p-5 flex flex-col justify-between hover:border-emerald-200 transition-all">
+                                    <div className="space-y-2">
+                                        <div className="flex items-start justify-between">
+                                            <div>
+                                                <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded">
+                                                    User: {rev.userId.slice(-6).toUpperCase()}
+                                                </span>
+                                                <p className="text-[10px] text-gray-400 mt-1">Complaint ID: {rev.complaintId}</p>
+                                            </div>
+                                            <div className="flex items-center gap-0.5 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 text-amber-700 text-xs font-semibold">
+                                                <Star size={12} className="fill-amber-500 text-amber-500" />
+                                                <span>{rev.rating} / 5</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-gray-700 italic border-l-2 border-emerald-500 pl-3 py-1 bg-gray-50/50 rounded-r">
+                                            “{rev.text || 'No comment provided.'}”
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center justify-between border-t pt-3 mt-4">
+                                        <span className="text-[10px] text-gray-400">
+                                            {new Date(rev.createdAt).toLocaleDateString('en-BD', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                        <button
+                                            onClick={() => handleHideReview(rev._id)}
+                                            disabled={hidingReviewId === rev._id}
+                                            className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-all disabled:opacity-50"
+                                            title="Hide review from homepage"
+                                        >
+                                            {hidingReviewId === rev._id ? (
+                                                <Loader2 size={12} className="animate-spin" />
+                                            ) : (
+                                                <EyeOff size={12} />
+                                            )}
+                                            <span>Hide Review</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            </div>
+            )}
 
             {/* Edit Role Modal */}
             <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Change Role">
