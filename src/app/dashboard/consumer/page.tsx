@@ -353,8 +353,8 @@ export default function ConsumerDashboard() {
                                         type="button"
                                         onClick={() => setCalcCategory(cat)}
                                         className={`py-2 px-3 text-xs font-semibold capitalize rounded-xl border transition-all ${calcCategory === cat
-                                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-                                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                            ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                                             }`}
                                     >
                                         {cat}
