@@ -1,3 +1,4 @@
+// src/components/Sidebar.tsx
 'use client';
 
 import React from 'react';
@@ -8,8 +9,7 @@ import { authClient } from '@/lib/auth-client';
 import {
     LayoutDashboard, FileText, Link2, AlertTriangle,
     DollarSign, User, Users, LogOut, BarChart3,
-    Settings,
-    Home
+    Settings, Home
 } from 'lucide-react';
 
 const menuConfig: Record<string, { href: string; label: string; icon: React.ReactNode }[]> = {
@@ -96,19 +96,20 @@ export default function Sidebar({
             {/* Mobile overlay */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                    className="fixed inset-0 bg-black/50 z-30 lg:hidden"
                     onClick={onClose}
                 />
             )}
 
-            {/* Sidebar */}
-            <aside className={`
-                fixed md:sticky top-16 md:top-0 left-0 h-[calc(100vh-4rem)] md:h-screen
-                w-64 bg-emerald-800 text-white flex flex-col
-                transform transition-transform duration-200 ease-in-out z-50
-                ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-                md:translate-x-0
-            `}>
+            {/* Sidebar – top-16 accounts for the new DashboardTopbar height */}
+            <aside
+                className={`
+                    fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-emerald-800 text-white flex flex-col
+                    transform transition-transform duration-200 ease-in-out z-30
+                    lg:translate-x-0 lg:static lg:top-0 lg:h-screen
+                    ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                `}
+            >
                 <div className="p-4 border-b border-emerald-700">
                     <h1 className="text-xl font-bold">WZPDCL</h1>
                     <p className="text-xs text-emerald-300 capitalize">{role}</p>

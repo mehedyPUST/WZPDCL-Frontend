@@ -4,10 +4,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import DashboardTopbar from '@/components/DashboardTopbar';
 import { getCookie, setCookie } from '@/lib/cookies';
-import { Menu } from 'lucide-react';
 
-// কোন base path কোন role-এর জন্য
 const rolePathMap: Record<string, string> = {
     '/dashboard/admin': 'admin',
     '/dashboard/xen': 'xen',
@@ -22,7 +21,7 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     useEffect(() => {
         const token = getCookie('token');
@@ -81,7 +80,7 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+            <div className="flex items-center justify-center min-h-screen">
                 <div className="animate-spin h-8 w-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
             </div>
         );
@@ -90,29 +89,23 @@ export default function ClientDashboardLayout({ children }: { children: React.Re
     if (!user) return null;
 
     return (
-        <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
-            <Sidebar
-                role={user.role}
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
+        <div className="min-h-screen bg-emerald-50">
+            {/* Topbar */}
+            <DashboardTopbar
+                user={user}
+                toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
             />
 
-            <div className="flex-1 flex flex-col">
-                {/* Mobile Top Sub-Header */}
-                <div className="md:hidden bg-white border-b border-emerald-100 px-4 py-3 flex items-center justify-between sticky top-16 z-30">
-                    <button
-                        onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 -ml-2 rounded-lg text-emerald-800 hover:bg-emerald-50 transition-colors"
-                    >
-                        <Menu size={24} />
-                    </button>
-                    <span className="font-semibold text-emerald-800 capitalize">
-                        {user.role.replace('_', ' ')} Portal
-                    </span>
-                    <div className="w-8" />
-                </div>
+            <div className="flex">
+                {/* Sidebar */}
+                <Sidebar
+                    role={user.role}
+                    isOpen={sidebarOpen}
+                    onClose={() => setSidebarOpen(false)}
+                />
 
-                <main className="flex-1 p-4 sm:p-6 bg-emerald-50 overflow-y-auto">
+                {/* Main Content */}
+                <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
                     {children}
                 </main>
             </div>
