@@ -59,6 +59,19 @@ export default function PayBillPage() {
                     </div>
                     <h1 className="text-2xl font-bold text-emerald-800">Pay Electricity Bill</h1>
                     <p className="text-gray-500 text-sm mt-1">Enter your meter number to find unpaid bill</p>
+
+                    <div className='text-sm text-gray-500'>
+                        <p className='text-red-500 text-xl'>Request to Examiner</p>
+                        <p>To Check This Functionality</p>
+                        <br />
+                        <ol>
+
+                            <li>1. Add a Meter From Connection Dashboard</li>
+                            <li>2. Generate Bill From Billings</li>
+                            <li>3. Then Enter The Meter Number Here</li>
+                            <li>4. You Can Also Pay Bill by Logging in a consumer Account and Claiming a meter</li>
+                        </ol>
+                    </div>
                 </div>
 
                 <div className="space-y-4">
