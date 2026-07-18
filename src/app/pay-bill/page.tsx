@@ -70,6 +70,8 @@ export default function PayBillPage() {
                             <li>2. Generate Bill From Billings</li>
                             <li>3. Then Enter The Meter Number Here</li>
                             <li>4. You Can Also Pay Bill by Logging in a consumer Account and Claiming a meter</li>
+                            <li>4. Or Enter PH-TEAM-TEST-METER-SCIC13 </li>
+
                         </ol>
                     </div>
                 </div>
